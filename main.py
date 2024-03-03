@@ -18,16 +18,26 @@ SHORT_CLICK_THR_MS = 220
 SPACE_THR_MS = 1250
 SEQUENCE_END_THR_MS = 2500
 
+MENU_CLICK_SHORT_THR_MS = 200
+MENU_CLICK_LONG_THR_MS = 990 #based on the refresh rate to allow 1x pixel per frame
+MAIN_MENU_TEXT_PAD = 10
+
+MENU_PROGRESS_BAR_WIDTH = 40
+MENU_ITEM_EASY = "Easy"
+MENU_ITEM_HARD = "Hard"
+MENU_ITEM_HOW_TO = "How To"
 PROGRESS_BAR_HEIGHT = 5
 
-DIFFICULTY_EASY = "easy"
-DIFFICULTY_HARD = "hard"
+SOUND_TEXT_ON = "on"
+SOUND_TEXT_OFF = "off"
 
 SHORT_SYMBOL = '.'
 LONG_SYMBOL = '-'
 SPACE_SYMBOL = ' '
 
-GAME_TIMER_S = 30
+GAME_TIMER_S = 3
+EASY_WRONG_POINTS_REDUCTION = 3
+HARD_WRONG_POINTS_REDUCTION = 5
 
 
 class GameEngine:
@@ -64,27 +74,35 @@ class GameEngine:
     hard_words = ["hello", "intel", "collect", "world", "forward"]
     wrong_code = False
     code_complete = False
+    timer_expired = False
     word = ""
     code = []
     points = 0
-    difficulty = DIFFICULTY_EASY
+    difficulty = MENU_ITEM_EASY
 
     captured_sequence = []
     cur_char_idx = 0
 
-    def __init__(self):
+    def __init__(self, difficulty):
         self.wrong_code = False
         self.code_complete = False
+        self.timer_expired = False
         self.points = 0
         self.captured_sequence = []
         self.cur_char_idx = 0
-        print(self.code)
+        self.difficulty = difficulty
 
     def gen_new_word(self):
-        self.word = random.choice(self.easy_words)
+
+        if self.difficulty == MENU_ITEM_EASY:
+            self.word = random.choice(self.easy_words)
+        else:
+            self.word = random.choice(self.hard_words)
+
         self.code = self.translate_to_morse(self.word)
         self.wrong_code = False
         self.code_complete = False
+        self.timer_expired = False
         self.captured_sequence = []
         self.cur_char_idx = 0
 
@@ -132,7 +150,11 @@ class GameEngine:
 
         if self.code[self.cur_char_idx] == symbol:
             self.cur_char_idx += 1
-            self.points += 1
+
+            if self.difficulty == MENU_ITEM_EASY:
+                self.points += 1
+            else:
+                self.points += 2
             if self.cur_char_idx == len(self.code) - 1:
                 self.code_complete = True
 
@@ -142,10 +164,25 @@ class GameEngine:
 
     def register_input_timeout(self):
         if self.is_code_input_started():
-            print('time out - game over!')
+            print('time out - wrong code')
             # self.cur_char_idx = 0
             # self.captured_sequence = []
             self.wrong_code = True
+
+    def add_points_upon_code_complete(self):
+        if self.difficulty is MENU_ITEM_EASY:
+            self.points += EASY_WRONG_POINTS_REDUCTION
+        else:
+            self.points += HARD_WRONG_POINTS_REDUCTION
+
+    def reduce_points_upon_wrong_code(self):
+        if self.difficulty is MENU_ITEM_EASY:
+            self.points -= EASY_WRONG_POINTS_REDUCTION
+        else:
+            self.points -= HARD_WRONG_POINTS_REDUCTION
+
+        if self.points < 0:
+            self.points = 0
 
     def is_code_completed(self):
         return self.code_complete
@@ -153,15 +190,105 @@ class GameEngine:
     def is_code_wrong(self):
         return self.wrong_code
 
+    def register_expired_timer(self):
+        self.timer_expired = True
 
-def main_game_loop():
+    def is_game_over(self):
+        return self.timer_expired
+
+
+def main_menu_loop():
+    game_sound = True
+    # items = ["Easy", "Hard", "How to", "Sound"]
+    items = [MENU_ITEM_EASY, MENU_ITEM_HARD, MENU_ITEM_HOW_TO]
+    selector_index = 0
+    menu_selection_fill_width = 0
+
+    start_click = False
+    start_click_tick = 0
+
+    while True:
+        if menu_selection_fill_width > MENU_PROGRESS_BAR_WIDTH:
+            menu_selection_fill_width = 0
+            print(items[selector_index] + ' selected')
+
+            if items[selector_index] in (MENU_ITEM_EASY, MENU_ITEM_HARD):
+                main_game_loop(items[selector_index], game_sound)
+                selector_index = 0
+                start_click = False
+                start_click_tick = 0
+
+        draw_main_menu(int(SCREEN_WIDTH / 2 - 20), 20, items, selector_index, menu_selection_fill_width, game_sound)
+
+        sleep_ms(REFRESH_RATE_MS)
+
+        # now, we handle button inputs
+        if button.value() == 0:
+            # check if the button is clicked from previous tick
+            if start_click:
+                # calculate for how long it was clicked to mark selection in the ui
+                delta = time.ticks_diff(time.ticks_ms(), start_click_tick)
+                if delta > SHORT_CLICK_THR_MS:
+                    menu_selection_fill_width += (MENU_PROGRESS_BAR_WIDTH/(MENU_CLICK_LONG_THR_MS/REFRESH_RATE_MS))*2
+
+            # check if button was actually pressed on this tick
+            if not start_click:
+                start_click_tick = time.ticks_ms()
+                start_click = True
+        else:
+            # check if button was released on this tick and calculate duration
+            if start_click:
+                delta = time.ticks_diff(time.ticks_ms(), start_click_tick)
+                if delta <= SHORT_CLICK_THR_MS:
+                    selector_index += 1
+                    if selector_index > len(items) - 1:
+                        selector_index = 0
+
+                start_click = False
+                menu_selection_fill_width = 0
+
+
+def draw_main_menu(x_pos, y_pos, items, selector_index, menu_selection_fill_width, sound):
+    sound_text = SOUND_TEXT_ON
+    if not sound:
+        sound_text = SOUND_TEXT_OFF
+    display.fill(0)
+    draw_frame()
+
+    y = y_pos
+    for item in items:
+        display.text(item, x_pos, y, 1)
+        y += MAIN_MENU_TEXT_PAD
+
+    draw_menu_selector(x_pos, y_pos, selector_index)
+
+    display.rect(x_pos, 10, MENU_PROGRESS_BAR_WIDTH, 5, 1)
+    display.fill_rect(x_pos, 10, int(menu_selection_fill_width), 5, 1)
+
+    display.show()
+
+
+def draw_menu_selector(x_pos, y_pos, selector_index):
+    x = x_pos - 10
+    y = y_pos + 1 + selector_index * MAIN_MENU_TEXT_PAD
+
+    display.line(x, y, x + 4, y + 2, 1)
+    display.line(x, y, x, y + 4, 1)
+    display.line(x, y + 4, x + 4, y + 2, 1)
+
+
+def main_game_loop(difficulty, sound_on):
     game_running = True
     start_game_tick = time.ticks_ms()
-    ge = GameEngine()
+    ge = GameEngine(difficulty)
 
     while game_running:
+
+        if ge.is_game_over():
+            break
+
         ge.gen_new_word()
-        sleep_ms(100)
+        sleep_ms(400)
 
         code_pixel_width = ge.calculate_code_pixel_count(False)
         code_x_pos = int((SCREEN_WIDTH - code_pixel_width) / 2)
@@ -181,29 +308,29 @@ def main_game_loop():
             # check if we completed the code sequence
             if ge.is_code_completed():
                 display.text("CORRECT", 30, 10, 1)
+                ge.add_points_upon_code_complete()
+                # TODO Here we need to highlight the points user got
                 display.show()
                 sleep_ms(1000)
-                display.fill(0)
-                display.show()
                 break
 
             # check if the game timer expired
             if elapsed_sec > GAME_TIMER_S:
+                ge.register_expired_timer()
                 display.text("TIME OUT", 30, 10, 1)
                 display.show()
                 sleep_ms(2000)
-                display.fill(0)
-                display.show()
-                # TODO Here we kill the game!
+                # TODO Here we need to highlight the final points user got
                 break
 
             if ge.is_code_wrong():
                 display.text("WRONG", 30, 10, 1)
+                ge.reduce_points_upon_wrong_code()
                 display.show()
                 sleep_ms(1000)
-                display.fill(0)
-                display.show()
-                # TODO Here we kill the game OR we reduce points and keep playing until timer ends
+                # display.fill(0)
+                # display.show()
+                # TODO we need to show points reduction
                 break
 
             # now, we handle button inputs
@@ -233,8 +360,6 @@ def main_game_loop():
                     if delta > SEQUENCE_END_THR_MS:
                         if ge.is_code_input_started():
                             ge.register_input_timeout()
-                            # print('game over - timeout!')
-                            #TODO game over here!
 
             sleep_ms(REFRESH_RATE_MS)
 
@@ -263,7 +388,11 @@ def draw_points(ge):
 
 
 def draw_timer(elapsed_sec):
-    display.text("T:{}".format(str(GAME_TIMER_S - elapsed_sec)), SCREEN_WIDTH - 40, 8, 1)
+
+    time_left = GAME_TIMER_S - elapsed_sec
+    if time_left < 0:
+        time_left = 0
+    display.text("T:{}".format(str(time_left)), SCREEN_WIDTH - 40, 8, 1)
 
 
 def draw_word(ge, y_pos):
@@ -295,4 +424,4 @@ def draw_progress_bar(ge, x, y, width):
     display.fill_rect(x + 1, y, fill_width, PROGRESS_BAR_HEIGHT, 1)
 
 
-main_game_loop()
+main_menu_loop()
