@@ -2,3 +2,4 @@
 .venv
 __*
 temp/*
+esp32_flash

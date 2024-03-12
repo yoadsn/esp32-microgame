@@ -2,7 +2,7 @@ import pygame
 from sys import exit
 from typing import Type
 from game_device import GameDevice, GameDisplay, GameTime, GameButton
-from game_logic import GameLogic
+from game_logic import BaseGameLogic
 
 
 class MockGameDisplay(GameDisplay):
@@ -19,6 +19,12 @@ class MockGameDisplay(GameDisplay):
         self.buffer = pygame.Surface([width, height])
         self.colors = [(0, 0, 0), (255, 255, 255)]
         pygame.display.set_caption("Game Engine")
+
+    def invert(self, is_on):
+        if is_on == 1:
+            self.colors = [(255, 255, 255), (0, 0, 0)]
+        else:
+            self.colors = [(0, 0, 0), (255, 255, 255)]
 
     def show(self):
         scaled = pygame.transform.scale(
@@ -54,6 +60,21 @@ class MockGameDisplay(GameDisplay):
     def pixel(self, x, y, col):
         if 0 <= x < self.width and 0 <= y < self.height:
             pygame.draw.rect(self.buffer, self.colors[col], [x, y, 1, 1])
+
+    def get_buffer(self, data_ba, w, h):
+        surface_buffer = pygame.Surface((w, h))
+        bytes_w = ((w - 1) // 8) + 1
+        for y in range(0, h):
+            for x in range(0, w):
+                by = y * bytes_w + x // 8
+                bi = x % 8
+                val = (data_ba[by] >> (7 - bi)) & 0x01
+                pygame.draw.rect(surface_buffer, self.colors[val], [x, y, 1, 1])
+
+        return surface_buffer
+
+    def blit(self, buf, x, y):
+        self.buffer.blit(buf, [x, y])
 
 
 class MockTime(GameTime):
@@ -95,7 +116,7 @@ class GameEngine:
         self.button = MockButton()
         self.device = GameDevice(self.time, self.display, self.button)
 
-    def load(self, logic_gen: Type[GameLogic]):
+    def load(self, logic_gen: Type[BaseGameLogic]):
         self.logic = logic_gen(self.device)
         self.logic.load()
 

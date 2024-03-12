@@ -1,7 +1,6 @@
-from difflib import diff_bytes
 import random
 from game_device import GameDevice
-from game_logic import GameLogic
+from game_logic import BaseGameLogic
 
 REFRESH_RATE_MS = 33
 
@@ -210,7 +209,7 @@ class MenuState:
         pass
 
 
-class MorseGameLogic(GameLogic):
+class GameLogic(BaseGameLogic):
     def __init__(self, device: GameDevice) -> None:
         self.screen_width = device.display.width
         self.screen_height = device.display.height

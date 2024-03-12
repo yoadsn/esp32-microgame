@@ -14,7 +14,16 @@ class GameDisplay:
     def fill_rect(self, x, y, w, h, col):
         pass
 
+    def rect(self, x, y, w, h, col):
+        pass
+
     def pixel(self, x, y, col):
+        pass
+
+    def get_buffer(self, data_ba, w, h):
+        pass
+
+    def blit(self, buf, x, y):
         pass
 
 

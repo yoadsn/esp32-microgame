@@ -1,7 +1,7 @@
 from game_device import GameDevice
 
 
-class GameLogic:
+class BaseGameLogic:
     def __init__(self, device: GameDevice) -> None:
         self.device = device
 
