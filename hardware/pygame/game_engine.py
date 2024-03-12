@@ -111,7 +111,7 @@ class MockButton(GameButton):
 class GameEngine:
     def __init__(self) -> None:
         pygame.init()
-        self.display = MockGameDisplay(128, 64, 5)
+        self.display = MockGameDisplay(128, 64, 3)
         self.time = MockTime()
         self.button = MockButton()
         self.device = GameDevice(self.time, self.display, self.button)
@@ -130,6 +130,8 @@ class GameEngine:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
                         self.button.set_value(0)
+                    elif event.key == pygame.K_ESCAPE:
+                        self.running = False
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_SPACE:
                         self.button.set_value(1)
