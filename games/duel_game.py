@@ -25,6 +25,16 @@ PROJECTILE_BLAST_RADIUS = 2
 PROJECTILE_SPEED = 2
 
 
+class Sound:
+    def __init__(self, audio, sound, interruptable=True) -> None:
+        self.audio = audio
+        self.sound = sound
+        self.interruptable = interruptable
+
+    def play(self):
+        self.audio.play(self.sound, self.interruptable)
+
+
 class Projectile:
     def __init__(self, display, x, y, direction):
         self.display = display
@@ -132,6 +142,10 @@ class PowerBar(ProgressBar):
         super().draw(int(self.height * power / self.max_power))
 
 
+SHOOT_MELODY = [(6, 1, 1), (5, 1, 1)]
+HIT_MELODY = [(6, 7, 1), (4, 4, 1), (3, 1, 1)]
+
+
 class Player:
     def __init__(
         self,
@@ -144,6 +158,7 @@ class Player:
         power_points: int,
         position: int = PLAYER_POSITION_TOP,
         initialSpeed: int = 3,
+        shoot_sound: Sound = None,
     ):
         # Game access
         self.time = time
@@ -157,6 +172,9 @@ class Player:
         self.bezel_start = bezel_start
         self.bezel_end = bezel_end
         self.bezel_width = bezel_end - bezel_start
+
+        # Assets
+        self.shoot_sound = shoot_sound
 
         # Positioning
         self.position = position
@@ -261,6 +279,9 @@ class Player:
 
         # Act on state
         if self.play_state == PST_FIRING:
+            if self.shoot_sound:
+                self.shoot_sound.play()
+
             self.projectile = Projectile(
                 self.display,
                 self.x,
@@ -400,6 +421,9 @@ class GameLogic(BaseGameLogic):
         self.field_start = (self.device.display.width - self.field_width) // 2
         self.field_end = self.device.display.width - self.field_start
 
+        self.shoot_sound = Sound(self.device.audio, self.device.audio.load_melody(SHOOT_MELODY))
+        self.hit_sound = Sound(self.device.audio, self.device.audio.load_melody(HIT_MELODY))
+
         self.game_state = GST_INIT
 
     def initialize_round(self):
@@ -416,6 +440,7 @@ class GameLogic(BaseGameLogic):
             position=PLAYER_POSITION_TOP,
             power_points=PLAYER_BASE_POWER_POINTS,
             initialSpeed=PLAYER_INITIAL_SPEED_PX_F,
+            shoot_sound=self.shoot_sound,
         )
         self.bottom_player = Player(
             self.device.time,
@@ -520,6 +545,7 @@ class GameLogic(BaseGameLogic):
             proj_rect = shooter.projectile.get_hit_rect()
             if target.check_hit(proj_rect):
                 target.update_power(-1)
+                self.hit_sound.play()
                 shooter.projectile = None  # Can't hit again!
                 self.count_down_to_invert = 5
 
