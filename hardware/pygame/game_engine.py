@@ -18,19 +18,24 @@ class MockGameDisplay(GameDisplay):
         self.screen = pygame.display.set_mode([width * scale, height * scale])
         self.buffer = pygame.Surface([width, height])
         self.colors = [(0, 0, 0), (255, 255, 255)]
+        self.inv_mask = pygame.Surface([width, height])
+        self.inverted = False
         pygame.display.set_caption("Game Engine")
 
     def invert(self, is_on):
-        if is_on == 1:
-            self.colors = [(255, 255, 255), (0, 0, 0)]
-        else:
-            self.colors = [(0, 0, 0), (255, 255, 255)]
+        self.inverted = is_on == 1
 
     def show(self):
+        to_apply = self.buffer
+        if self.inverted:
+            self.inv_mask.fill(self.colors[1])
+            self.inv_mask.blit(self.buffer, (0, 0), None, pygame.BLEND_SUB)
+            to_apply = self.inv_mask
         scaled = pygame.transform.scale(
-            self.buffer, (self.width * self.scale, self.height * self.scale)
+            to_apply, (self.width * self.scale, self.height * self.scale)
         )
         self.screen.blit(scaled, (0, 0))
+
         pygame.display.flip()
 
     def fill(self, col):
@@ -40,7 +45,7 @@ class MockGameDisplay(GameDisplay):
         if self.last_surface_text != string:
             self.last_surface_text = string
             self.last_text_surface = self.font.render(string, False, self.colors[col])
-        self.buffer.blit(self.last_text_surface, [x, y])
+        self.buffer.blit(self.last_text_surface, [x, y], None)
 
     def line(self, start_pos_x, start_pos_y, end_pos_x, end_pos_y, col):
         pygame.draw.line(
