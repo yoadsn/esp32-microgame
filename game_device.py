@@ -52,10 +52,42 @@ class GameButton:
         pass
 
 
+class GameSound:
+    def __init__(self) -> None:
+        pass
+
+
+class GameAudio:
+    def __init__(self) -> None:
+        pass
+
+    def play(self, sound_id):
+        pass
+
+    def load_melody(self, melody):
+        pass
+
+    def note_to_freq(self, octave: int, note_idx: int) -> int:
+        if octave == 0:
+            return 0
+        # Distance of C from A in the equal-tempered scale
+        distance_from_a = note_idx - 9
+
+        # Adjusting for the octave
+        n = (octave - 4) * 12 + distance_from_a
+
+        # Calculate the frequency
+        freq = 440 * (2 ** (n / 12))
+
+        # Return the frequency rounded to the nearest whole number
+        return round(freq)
+
+
 class GameDevice:
     def __init__(
-        self, time: GameTime, display: GameDisplay, button: GameButton
+        self, time: GameTime, display: GameDisplay, button: GameButton, audio: GameAudio
     ) -> None:
         self.time = time
         self.display = display
         self.button = button
+        self.audio = audio

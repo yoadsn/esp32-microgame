@@ -2,6 +2,42 @@ import random
 from game_device import GameDevice
 from game_logic import BaseGameLogic
 
+pause = (0, 0, 1)
+melody = [
+    (4, 0, 1),  # C
+    pause,  # Short pause
+    (4, 0, 1),  # C
+    pause,  # Short pause
+    (4, 7, 1),  # G
+    pause,  # Short pause
+    (4, 7, 1),  # G
+    pause,  # Short pause
+    (4, 9, 1),  # A
+    pause,  # Short pause
+    (4, 9, 1),  # A
+    pause,  # Short pause
+    (4, 7, 1),  # G
+    pause,  # Short pause
+    pause,  # Short pause
+    pause,  # Short pause
+    (4, 5, 1),  # F
+    pause,  # Short pause
+    (4, 5, 1),  # F
+    pause,  # Short pause
+    (4, 4, 1),  # E
+    pause,  # Short pause
+    (4, 4, 1),  # E
+    pause,  # Short pause
+    (4, 2, 1),  # D
+    pause,  # Short pause
+    (4, 2, 1),  # D
+    pause,  # Short pause
+    (4, 0, 1),  # C
+    pause,  # Short pause
+    pause,  # Short pause
+    pause,  # Short pause
+]
+
 
 class Ball:
     def __init__(self, sprite, sprite_offset_x=0, sprite_offset_y=1):
@@ -41,14 +77,15 @@ class GameLogic(BaseGameLogic):
 
     def load(self):
         print("game loaded")
+        self.intro_melody = self.device.audio.load_melody(melody)
         self.start_game_tick = self.device.time.ticks_ms()
-        ball_sprite = self.device.display.get_buffer(bytearray(
-            (0b10100000,
-             0b01000000,
-             0b10100000)), 3, 3)
+        ball_sprite = self.device.display.get_buffer(
+            bytearray((0b10100000, 0b01000000, 0b10100000)), 3, 3
+        )
         self.ball1 = Ball(ball_sprite, -1, -1)
         self.ball2 = Ball(ball_sprite, -1, -1)
         self.ball3 = Ball(ball_sprite, -1, -1)
+        self.device.audio.play(self.intro_melody)
 
     def game_tick(self):
         device = self.device

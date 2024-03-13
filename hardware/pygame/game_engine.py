@@ -1,7 +1,9 @@
+from array import array
+import math
 import pygame
 from sys import exit
 from typing import Type
-from game_device import GameDevice, GameDisplay, GameTime, GameButton
+from game_device import GameDevice, GameDisplay, GameTime, GameButton, GameAudio
 from game_logic import BaseGameLogic
 
 
@@ -117,13 +119,64 @@ class MockButton(GameButton):
         return self._value
 
 
+AUDIO_BIT_DEPTH = 8
+AUDIO_SAMPLE_RATE = 5512
+AUDIO_BPM = 480
+
+
+class MockGameAudio(GameAudio):
+    def __init__(self) -> None:
+        pygame.mixer.pre_init(AUDIO_SAMPLE_RATE, -AUDIO_BIT_DEPTH, 1)
+        self.sounds = []
+
+    def play(self, sound_id):
+        self.sounds[sound_id].play(loops=0)
+
+    def load_melody(self, melody):
+        sample_rate = AUDIO_SAMPLE_RATE
+        bpm = AUDIO_BPM
+        note_fade_in_out_length = 0.03
+        note_fade_in_out_samples = int(note_fade_in_out_length * sample_rate)
+        note_length_seconds = 60 / bpm
+        melody_length_seconds = sum([m[2] for m in melody]) * note_length_seconds
+        n_samples = int(round(melody_length_seconds * sample_rate))
+        buf = [0 for z in range(0, n_samples)]
+        max_sample = 2 ** (AUDIO_BIT_DEPTH - 1) - 1
+        note_starts_at_sample = 0
+        for m in melody:
+            octave, note, duration = m
+            f = self.note_to_freq(octave, note)
+            samples_for_note = int(duration * note_length_seconds * sample_rate)
+            for note_sample_iter in range(samples_for_note):
+                curr_sample = note_starts_at_sample + note_sample_iter
+                t = float(curr_sample) / sample_rate  # time in seconds
+                dampen_factor = 1
+
+                if note_sample_iter <= note_fade_in_out_samples:
+                    dampen_factor = note_sample_iter / note_fade_in_out_samples
+                if note_sample_iter >= samples_for_note - note_fade_in_out_samples:
+                    dampen_factor = (
+                        samples_for_note - note_sample_iter
+                    ) / note_fade_in_out_samples
+
+                # grab the x-coordinate of the sine wave at a given time, while constraining the sample to what our mixer is set to with "bits"
+                buf[curr_sample] = int(
+                    round(max_sample * math.sin(2 * math.pi * f * t) * dampen_factor)
+                )
+            note_starts_at_sample += samples_for_note
+        sound = pygame.mixer.Sound(array("b" if AUDIO_BIT_DEPTH == 8 else "h", buf))
+        self.sounds.append(sound)
+        return len(self.sounds) - 1
+
+
 class GameEngine:
     def __init__(self) -> None:
+        self.audio = MockGameAudio()
         pygame.init()
         self.display = MockGameDisplay(128, 64, 3)
         self.time = MockTime()
         self.button = MockButton()
-        self.device = GameDevice(self.time, self.display, self.button)
+        self.device = GameDevice(self.time, self.display, self.button, self.audio)
 
     def load(self, logic_gen: Type[BaseGameLogic]):
         self.logic = logic_gen(self.device)
