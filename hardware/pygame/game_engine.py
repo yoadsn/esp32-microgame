@@ -38,6 +38,13 @@ class MockGameDisplay(GameDisplay):
         )
         self.screen.blit(scaled, (0, 0))
 
+        # Pseudo pixel grid - for fun
+        if self.scale > 4:
+            for i in range(0, self.screen.get_width()):
+                for j in range(0, self.screen.get_height()):
+                    if i % self.scale == 0 or j % self.scale == 0:
+                        self.screen.set_at((i, j), self.colors[0])
+
         pygame.display.flip()
 
     def fill(self, col):
