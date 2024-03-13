@@ -102,7 +102,7 @@ class SSD1306(framebuf.FrameBuffer):
         self.write_data(self.buffer)
 
     def fill_rect(self, x, y, w, h, c):
-        self.rect(x, y, w, h, c)
+        self.rect(x, y, w, h, c, True)
 
     def get_buffer(self, data_ba, w, h):
         return framebuf.FrameBuffer(data_ba, w, h, framebuf.MONO_HLSB)
