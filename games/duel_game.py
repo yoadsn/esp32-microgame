@@ -17,7 +17,7 @@ PST_EXPLODED = 4
 STOP_TO_CHARGE_WAIT_MS = 10
 CHARGE_TO_FIRE_WAIT_PER_POWER_MS = 55
 PLAYER_INITIAL_SPEED_PX_F = 3
-PLAYER_BASE_POWER_POINTS = 10
+PLAYER_BASE_POWER_POINTS = 20
 PLAYER_BASE_LENGTH_PX = 40
 PLAYER_MIN_BASE_LENGTH_PX = 5
 
@@ -227,6 +227,8 @@ class Player:
             power_points,
         )
 
+        self.update_power(0)
+
     def play(self, button):
         # progress state machine
         curr_state = self.play_state
@@ -257,11 +259,6 @@ class Player:
             self.play_state_start = self.time.ticks_ms()
             self.play_state = next_state
 
-        self.player_width = max(
-            PLAYER_MIN_BASE_LENGTH_PX,
-            PLAYER_BASE_LENGTH_PX * (self.power_points / PLAYER_BASE_POWER_POINTS),
-        )
-
         # Act on state
         if self.play_state == PST_FIRING:
             self.projectile = Projectile(
@@ -272,7 +269,7 @@ class Player:
             )
 
     def check_hit(self, rect):
-        if self.play_state == PST_EXPLODED:
+        if self.check_exploded():
             return False
 
         x1, y1, x2, y2 = rect
@@ -286,8 +283,15 @@ class Player:
                     return True
         return False
 
+    def check_exploded(self):
+        return self.play_state == PST_EXPLODED
+
     def update_power(self, power_diff):
         self.power_points += power_diff
+        self.player_width = max(
+            PLAYER_MIN_BASE_LENGTH_PX,
+            PLAYER_BASE_LENGTH_PX * (self.power_points / PLAYER_BASE_POWER_POINTS),
+        )
         self.charge_bar.set_full_charge_pct(
             self.power_points / PLAYER_BASE_POWER_POINTS
         )
@@ -358,6 +362,9 @@ class ComputerController:
 
     def play(self):
         current_time = self.player.time.ticks_ms()
+        if self.last_shot_time is None:
+            self.last_shot_time = current_time
+
         if not self.player.projectile:
             # Check if at least 3 seconds have passed since the last shot
             if (
@@ -365,9 +372,20 @@ class ComputerController:
                 or (current_time - self.last_shot_time) >= 3000
             ):
                 self.player.play(True)
+            else:
+                self.player.play(False)
         else:  # If not in defensive mode, assume offensive mode
             self.last_shot_time = current_time
             self.player.play(False)
+
+
+GST_INIT = -1
+GST_ROUND_INIT = 0
+GST_ROUND_PRE_RUN = 1
+GST_ROUND_RUN = 2
+GST_ROUND_ENDED = 3
+
+GST_ROUNDED_ENDED_DELAY_MS = 2000
 
 
 class GameLogic(BaseGameLogic):
@@ -378,13 +396,16 @@ class GameLogic(BaseGameLogic):
 
     def load(self):
         print("game loaded")
-        self.count_down_to_invert = 0
-        self.start_game_tick = self.device.time.ticks_ms()
-
         self.field_width = FIELD_WIDTH
         self.field_start = (self.device.display.width - self.field_width) // 2
         self.field_end = self.device.display.width - self.field_start
 
+        self.game_state = GST_INIT
+
+    def initialize_round(self):
+        print("round init")
+        self.round_won = False
+        self.count_down_to_invert = 0
         self.top_player = Player(
             self.device.time,
             self.device.display,
@@ -409,10 +430,90 @@ class GameLogic(BaseGameLogic):
         )
         self.npc = ComputerController(self.bottom_player)
 
+    def play(self):
+        time = self.device.time
+        # Progress States
+        next_state = curr_state = self.game_state
+        now = time.ticks_ms()
+        button_pressed = self.device.button.value() == 0
+
+        if curr_state == GST_ROUND_RUN:
+            if self.top_player.check_exploded() or self.bottom_player.check_exploded():
+                next_state = GST_ROUND_ENDED
+
+        elif curr_state == GST_ROUND_INIT:
+            next_state = GST_ROUND_PRE_RUN
+
+        elif curr_state == GST_ROUND_PRE_RUN:
+            if button_pressed:
+                next_state = GST_ROUND_RUN
+
+        elif curr_state == GST_ROUND_ENDED:
+            if time.ticks_diff(now, self.game_state_start) > GST_ROUNDED_ENDED_DELAY_MS:
+                next_state = GST_ROUND_INIT
+        else:
+            next_state = GST_ROUND_INIT
+
+        prev_state = curr_state
+        if next_state != curr_state:
+            self.game_state_start = now
+            self.game_state = curr_state = next_state
+
+        # Act
+        if curr_state == GST_ROUND_INIT:
+            self.initialize_round()
+
+        elif curr_state == GST_ROUND_ENDED:
+            self.round_won = self.bottom_player.check_exploded()
+
+        elif curr_state == GST_ROUND_RUN:
+            if prev_state == GST_ROUND_PRE_RUN:
+                self.start_game_tick = self.device.time.ticks_ms()
+
+            self.top_player.play(button_pressed)
+            self.npc.play()
+
+    def move(self):
+        if self.game_state == GST_ROUND_RUN:
+            # Move players if in defensive mode
+            self.top_player.move()
+            self.bottom_player.move()
+
+            # projectile hits
+            self.hit(self.top_player, self.bottom_player)
+            self.hit(self.bottom_player, self.top_player)
+
     def draw(self):
-        self.device.display.rect(
+        display = self.device.display
+        # Clear display and redraw players
+        display.fill(0)
+
+        display.rect(
             self.field_start, 0, self.field_width, self.device.display.height, 1
         )
+
+        if self.game_state == GST_ROUND_PRE_RUN:
+            display.center_text("Press Start", 1)
+        elif self.game_state == GST_ROUND_ENDED:
+            if self.round_won:
+                display.center_text("Won!", 1)
+            else:
+                display.center_text("Lost..", 1)
+
+        self.top_player.draw()
+        self.bottom_player.draw()
+
+        if self.count_down_to_invert > 0:
+            if self.game_state == GST_ROUND_ENDED:
+                self.count_down_to_invert = 0
+                display.invert(0)
+            else:
+                display.invert(1)
+                self.count_down_to_invert -= 1
+                if self.count_down_to_invert == 0:
+                    display.invert(0)
+
+        display.show()
 
     def hit(self, shooter: Player, target: Player):
         if shooter.projectile:
@@ -423,38 +524,6 @@ class GameLogic(BaseGameLogic):
                 self.count_down_to_invert = 5
 
     def game_tick(self):
-        device = self.device
-        display = device.display
-        time = device.time
-        button = device.button
-
-        self.top_player.play(button.value() == 0)
-        self.npc.play()
-
-        # Move players if in defensive mode
-        self.top_player.move()
-        self.bottom_player.move()
-
-        # Check each player projectile (if exists)
-        # If it reached the other player edge, and the player currently draw
-        # line does not cover that section - the hit player loses a power point
-        # background should be in the color of the hit player for this frame
-        self.hit(self.top_player, self.bottom_player)
-        self.hit(self.bottom_player, self.top_player)
-
-        # Clear display and redraw players
-        display.fill(0)
-
+        self.play()
+        self.move()
         self.draw()
-        self.top_player.draw()
-        self.bottom_player.draw()
-
-        if self.count_down_to_invert > 0:
-            display.invert(1)
-            self.count_down_to_invert -= 1
-            if self.count_down_to_invert == 0:
-                display.invert(0)
-
-        # display.text("12", 1, 2, 1)
-        # display.text("12", 111, 51, 1)
-        display.show()
