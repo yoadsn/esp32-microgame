@@ -101,6 +101,11 @@ class SSD1306(framebuf.FrameBuffer):
         self.write_cmd(self.pages - 1)
         self.write_data(self.buffer)
 
+    # Assumes 8x8 pixel font
+    def center_text(self, string, col):
+        strlen = len(string) * 8
+        self.text(string, (self.width - strlen) // 2, (self.height - 8) // 2, col)
+
     def fill_rect(self, x, y, w, h, c):
         self.rect(x, y, w, h, c, True)
 

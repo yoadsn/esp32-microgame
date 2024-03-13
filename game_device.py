@@ -5,6 +5,9 @@ class GameDisplay:
     def fill(self, col):
         pass
 
+    def center_text(self, string, col):
+        pass
+
     def text(self, string, x, y, col=1):
         pass
 
