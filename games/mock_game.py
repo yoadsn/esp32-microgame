@@ -3,7 +3,7 @@ from game_device import GameDevice
 from game_logic import BaseGameLogic
 
 pause = (0, 0, 1)
-melody = [
+intro_melody = [
     (4, 0, 1),  # C
     pause,  # Short pause
     (4, 0, 1),  # C
@@ -38,6 +38,8 @@ melody = [
     pause,  # Short pause
 ]
 
+ball_sound = [(5, 0, 1), (6, 0, 1)]
+
 
 class Ball:
     def __init__(self, sprite, sprite_offset_x=0, sprite_offset_y=1):
@@ -62,10 +64,14 @@ class Ball:
 
     def bounce(self, width, height):
         # Bounce off the walls by inverting velocity when hitting boundaries
+        did_bounce = False
         if self.x <= 0 or self.x >= width:
             self.vx *= -1
+            did_bounce = True
         if self.y <= 0 or self.y >= height:
             self.vy *= -1
+            did_bounce = True
+        return did_bounce
 
 
 class GameLogic(BaseGameLogic):
@@ -77,7 +83,8 @@ class GameLogic(BaseGameLogic):
 
     def load(self):
         print("game loaded")
-        self.intro_melody = self.device.audio.load_melody(melody)
+        self.intro_melody = self.device.audio.load_melody(intro_melody)
+        self.ball_bump = self.device.audio.load_melody(ball_sound)
         self.start_game_tick = self.device.time.ticks_ms()
         ball_sprite = self.device.display.get_buffer(
             bytearray((0b10100000, 0b01000000, 0b10100000)), 3, 3
@@ -85,7 +92,7 @@ class GameLogic(BaseGameLogic):
         self.ball1 = Ball(ball_sprite, -1, -1)
         self.ball2 = Ball(ball_sprite, -1, -1)
         self.ball3 = Ball(ball_sprite, -1, -1)
-        self.device.audio.play(self.intro_melody)
+        self.device.audio.play(self.intro_melody, False)
 
     def game_tick(self):
         device = self.device
@@ -96,16 +103,24 @@ class GameLogic(BaseGameLogic):
         display.fill(0)
 
         self.ball1.move()
-        self.ball1.bounce(self.screen_width, self.screen_height)
+        did_bounce = self.ball1.bounce(self.screen_width, self.screen_height)
         self.ball1.draw(display)
 
         self.ball2.move()
-        self.ball2.bounce(self.screen_width, self.screen_height)
+        did_bounce = (
+            self.ball2.bounce(self.screen_width, self.screen_height) or did_bounce
+        )
         self.ball2.draw(display)
 
         self.ball3.move()
-        self.ball3.bounce(self.screen_width, self.screen_height)
+        did_bounce = (
+            self.ball3.bounce(self.screen_width, self.screen_height) or did_bounce
+        )
         self.ball3.draw(display)
+
+        if did_bounce:
+            self.device.audio.play(self.ball_bump)
+            pass
 
         display.rect(0, 0, 128, 64, 1)
 

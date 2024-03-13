@@ -61,7 +61,7 @@ class GameAudio:
     def __init__(self) -> None:
         pass
 
-    def play(self, sound_id):
+    def play(self, sound_id, interruptable):
         pass
 
     def load_melody(self, melody):

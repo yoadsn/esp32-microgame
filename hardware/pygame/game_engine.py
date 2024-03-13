@@ -128,8 +128,16 @@ class MockGameAudio(GameAudio):
     def __init__(self) -> None:
         pygame.mixer.pre_init(AUDIO_SAMPLE_RATE, -AUDIO_BIT_DEPTH, 1)
         self.sounds = []
+        self.last_played_interruptable = True
 
-    def play(self, sound_id):
+    def play(self, sound_id, interruptable=True):
+        if pygame.mixer.get_busy():
+            if self.last_played_interruptable:
+                pygame.mixer.stop()
+            else:
+                return
+
+        self.last_played_interruptable = interruptable
         self.sounds[sound_id].play(loops=0)
 
     def load_melody(self, melody):

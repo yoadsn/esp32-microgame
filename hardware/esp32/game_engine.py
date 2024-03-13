@@ -11,43 +11,61 @@ target_fps = 24
 target_tick_length_us = 1_000_000 // target_fps
 
 speaker_pwm = PWM(Pin(23))
-AUDIO_BPM = 480
 speaker_pwm.deinit()
+AUDIO_BPM = 480
 
 pwm_max_duty = 2**16 - 1
 pwm_volume_duty = pwm_max_duty // 2**6
 pwm_off_duty = 0
-melody_playing = False
-melody_note_idx = 0
-melody_duration_counter = 0
-melody_freqs = []
-melody_durations = []
+melodies_queue = []
 
 
 def tim_cb(t):
-    global melody_playing
-    global melody_note_idx
-    global melody_freqs
-    global melody_durations
-    global melody_duration_counter
-    if not melody_playing:
+    global melodies_queue
+
+    if len(melodies_queue) == 0:
+        speaker_pwm.deinit()
         return
 
+    freqs, durations, melody_note_idx, melody_duration_counter, play_request_id, interruptable = (
+        melodies_queue[0]
+    )
     if melody_duration_counter == 0:
-        duration_counter = melody_durations[melody_note_idx]
-    f = melody_freqs[melody_note_idx]
+        duration_counter = durations[melody_note_idx]
+    f = freqs[melody_note_idx]
 
+    # silence note - off duty
     if f == 0:
         speaker_pwm.duty_u16(pwm_off_duty)
     else:
         speaker_pwm.init(freq=f, duty_u16=pwm_volume_duty)
 
+    # next play duration of note
     duration_counter -= 1
-    if duration_counter == 0:
+
+    # End of note? move to next note
+    if duration_counter <= 0:
         melody_note_idx = melody_note_idx + 1
 
-    if melody_note_idx == len(melody_freqs):
-        melody_playing = False
+    # melody is done playing
+    if melody_note_idx == len(freqs):
+        # remove from queue
+        melodies_queue.pop(0)
+    else:
+        # ensure the item in the queue is still the item
+        # being played
+        if melodies_queue[0][4] == play_request_id:
+            melodies_queue[0] = (
+                freqs,
+                durations,
+                melody_note_idx,
+                melody_duration_counter,
+                play_request_id,
+                interruptable
+            )
+        # the queue has been altered await nexy cycle to resync with it
+        else:
+            pass
 
 
 tim0 = Timer(0)
@@ -57,6 +75,7 @@ tim0.init(freq=int(AUDIO_BPM / 60), mode=Timer.PERIODIC, callback=tim_cb)
 class PwmGameAudio(GameAudio):
     def __init__(self):
         self.melodies = []
+        self.play_request_id = 0
 
     def load_melody(self, melody):
         freqs = [self.note_to_freq(mn[0], mn[1]) for mn in melody]
@@ -64,18 +83,24 @@ class PwmGameAudio(GameAudio):
         self.melodies.append((freqs, durations))
         return len(self.melodies) - 1
 
-    def play(self, melody_id):
-        global melody_playing
-        global melody_note_idx
-        global melody_freqs
-        global melody_durations
-        global melody_duration_counter
+    def play(self, melody_id, interruptable=True):
+        global melodies_queue
+
+        self.play_request_id += 1
         freqs, durations = self.melodies[melody_id]
-        melody_freqs = freqs
-        melody_durations = durations
-        melody_duration_counter = 0
-        melody_note_idx = 0
-        melody_playing = True
+        melody_queue_item = (
+            freqs,
+            durations,
+            0,
+            0,
+            self.play_request_id,
+            interruptable,
+        )  # (freqs, durations, note idx, duration counter)
+
+        if len(melodies_queue) > 0 and melodies_queue[0][5]:
+            melodies_queue.clear()
+
+        melodies_queue.append(melody_queue_item)
 
 
 class GameEngine:
