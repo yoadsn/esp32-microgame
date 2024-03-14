@@ -1,6 +1,6 @@
 from hardware.esp32.game_engine import GameEngine
 
-Game = __import__("games.duel_game", globals(), locals(), ["GameLogic"])
+Game = __import__("games.duel.game", globals(), locals(), ["GameLogic"])
 
 if __name__ == "__main__":
     print("Game Running__")

@@ -1,0 +1,4 @@
+esptool==4.7.0
+mpremote==1.22.0
+pillow==10.2.0
+pygame==2.5.2

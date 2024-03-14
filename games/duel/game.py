@@ -1,6 +1,7 @@
-import random
 from game_device import GameDevice
 from game_logic import BaseGameLogic
+
+game_root_dir = "./games/duel"
 
 FIELD_WIDTH = 116
 
@@ -180,14 +181,14 @@ class Player:
         self.position = position
         self.direction = 1 - self.position * 2  # 1 or -1
         self.x = self.field_width // 2
-        self.y = 1 if position == PLAYER_POSITION_TOP else display.height - 2
+        self.y = 0 if position == PLAYER_POSITION_TOP else display.height - 1
 
         # State initialization
         self.play_state: int = PST_INIT
         self.play_state_start: int = 0
         self.power_points = power_points
 
-        self.sprite = display.get_buffer(
+        self.center = display.get_buffer(
             bytearray(
                 (
                     0b0000_0000,
@@ -355,13 +356,18 @@ class Player:
             display.rect(x, y, 1, 1, 1)
         else:
             player_half_width = self.player_width // 2
-            """ display.blit(
-                self.sprite,
-                self.x - 8,
-                self.y + (0 if self.position == PLAYER_POSITION_TOP else -5),
-            ) """
-            display.line(
-                int(x - player_half_width), y, int(x + player_half_width), y, 1
+            # display.blit(
+            #     self.sprite,
+            #     self.x - 8,
+            #     self.y + (0 if self.position == PLAYER_POSITION_TOP else -5),
+            # )
+            # display.line(
+            #     int(x - player_half_width), y, int(x + player_half_width), y, 1
+            # )
+            dh = 10
+            draw_y = self.y if self.position == PLAYER_POSITION_TOP else self.y - dh + 1
+            display.rect(
+                int(x - player_half_width), draw_y, int(self.player_width), dh, 1
             )
 
         # Draw the projectile
@@ -408,7 +414,6 @@ GST_ROUND_ENDED = 3
 
 GST_ROUNDED_ENDED_DELAY_MS = 2000
 
-
 class GameLogic(BaseGameLogic):
     def __init__(self, device: GameDevice) -> None:
         self.screen_width = device.display.width
@@ -416,15 +421,21 @@ class GameLogic(BaseGameLogic):
         super().__init__(device)
 
     def load(self):
-        print("game loaded")
         self.field_width = FIELD_WIDTH
         self.field_start = (self.device.display.width - self.field_width) // 2
         self.field_end = self.device.display.width - self.field_start
 
-        self.shoot_sound = Sound(self.device.audio, self.device.audio.load_melody(SHOOT_MELODY))
-        self.hit_sound = Sound(self.device.audio, self.device.audio.load_melody(HIT_MELODY))
+        self.shoot_sound = Sound(
+            self.device.audio, self.device.audio.load_melody(SHOOT_MELODY)
+        )
+        self.hit_sound = Sound(
+            self.device.audio, self.device.audio.load_melody(HIT_MELODY)
+        )
 
         self.game_state = GST_INIT
+        a = game_root_dir + "/assets/ship_sprite.pbm"
+        self.sprite = self.device.load_display_asset(a)
+        print("game loaded")
 
     def initialize_round(self):
         print("round init")
@@ -513,9 +524,10 @@ class GameLogic(BaseGameLogic):
         # Clear display and redraw players
         display.fill(0)
 
-        display.rect(
-            self.field_start, 0, self.field_width, self.device.display.height, 1
+        display.line(
+            self.field_start, 0, self.field_start, self.device.display.height, 1
         )
+        display.line(self.field_end, 0, self.field_end, self.device.display.height, 1)
 
         if self.game_state == GST_ROUND_PRE_RUN:
             display.center_text("Press Start", 1)
