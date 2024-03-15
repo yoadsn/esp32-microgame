@@ -112,6 +112,9 @@ class SSD1306(framebuf.FrameBuffer):
     def get_buffer(self, data_ba, w, h):
         return framebuf.FrameBuffer(data_ba, w, h, framebuf.MONO_HLSB)
 
+    def blit_onto(self, buf_src, buf_dest, x, y):
+        buf_dest.blit(buf_src, x, y)
+
 
 class SSD1306_I2C(SSD1306):
     def __init__(self, width, height, i2c, addr=0x3C, external_vcc=False):

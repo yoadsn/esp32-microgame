@@ -13,6 +13,7 @@ if not asset_input_dir.exists():
 if not asset_output_dir.exists():
     asset_output_dir.mkdir()
 
-# Sprite generation
-with Image.open(asset_input_dir / "ship_sprite.png") as im:
-    im.convert('1').save(asset_output_dir / "ship_sprite.pbm")
+for ship_asset in ['ship-hull', 'ship-wingtip-left', 'ship-wingtip-right', 'ship-wing-ext']:
+    # Sprite generation
+    with Image.open(asset_input_dir / f"{ship_asset}.png") as im:
+        im.convert('1').save(asset_output_dir / f"{ship_asset}.pbm")

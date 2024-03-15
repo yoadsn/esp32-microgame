@@ -43,6 +43,61 @@ def load_sprite_bytes(filename: str) -> bytearray:
     return (img_data, img_w, img_h)
 
 
+def flip_sprite_bytes(
+    sprite_bytes: bytearray, w: int, h: int, flip_h: bool = False, flip_v: bool = False
+):
+    if flip_h or flip_v:
+        # restructure as an array of boolean for direct-per-pixel manipulation
+        # in the process remove extra bits that were needed to fill last-line-bytes
+        packed_length = len(sprite_bytes)
+        packed_row_bytes = (w + 7) // 8
+        bitmap_array = list(bytearray(w * h))  # pixel per byte - unpacked
+        for from_x in range(0, w):
+            for from_y in range(0, h):
+                packed_byte_idx = from_y * packed_row_bytes + from_x // 8
+                packed_bit_idx = from_x % 8
+                unpacked_byte_idx = from_y * w + from_x
+                packed_bit_location = 8 - packed_bit_idx - 1  # MONO_HLSB
+                bitmap_array[unpacked_byte_idx] = (
+                    sprite_bytes[packed_byte_idx] >> packed_bit_location & 1
+                )
+
+        if flip_v:
+            # go over all cols - reverse row order
+            for x in range(0, w):
+                for y in range(0, h // 2):
+                    swap_pixel = y * w + x
+                    with_pixel = (h - y - 1) * w + x
+                    tmp_val = bitmap_array[swap_pixel]
+                    bitmap_array[swap_pixel] = bitmap_array[with_pixel]
+                    bitmap_array[with_pixel] = tmp_val
+
+        if flip_h:
+            # go over all rows - reverse col order
+            for y in range(0, h):
+                for x in range(0, w // 2):
+                    swap_pixel = y * w + x
+                    with_pixel = y * w + (w - x - 1)
+                    tmp_val = bitmap_array[swap_pixel]
+                    bitmap_array[swap_pixel] = bitmap_array[with_pixel]
+                    bitmap_array[with_pixel] = tmp_val
+
+        # pack back per-pixel array to byte array
+        flipped_ba = bytearray(packed_length)
+        for from_x in range(0, w):
+            for from_y in range(0, h):
+                packed_byte_idx = from_y * packed_row_bytes + from_x // 8
+                packed_bit_idx = from_x % 8
+                unpacked_byte_idx = from_y * w + from_x
+                packed_bit_location = 8 - packed_bit_idx - 1  # MONO_HLSB
+                flipped_ba[packed_byte_idx] |= (
+                    bitmap_array[unpacked_byte_idx] << packed_bit_location
+                )
+
+        return flipped_ba
+    return sprite_bytes
+
+
 class GameDisplay:
     def show(self):
         pass
@@ -72,6 +127,9 @@ class GameDisplay:
         pass
 
     def blit(self, buf, x, y):
+        pass
+
+    def blit_onto(self, buf_src, buf_dest, x, y):
         pass
 
 
@@ -144,6 +202,10 @@ class GameDevice:
         self.button = button
         self.audio = audio
 
-    def load_display_asset(self, filename: str) -> GameDisplayAsset:
+    def load_display_asset(
+        self, filename: str, flip_h: bool = False, flip_v: bool = False
+    ) -> GameDisplayAsset:
         (ba, w, h) = load_sprite_bytes(filename)
-        return GameDisplayAsset(self.display.get_buffer(ba, w, h), w, h)
+        sprite_bytes = flip_sprite_bytes(ba, w, h, flip_h=flip_h, flip_v=flip_v)
+
+        return GameDisplayAsset(self.display.get_buffer(sprite_bytes, w, h), w, h)

@@ -1,4 +1,4 @@
-from game_device import GameDevice
+from game_device import GameDevice, GameDisplayAsset
 from game_logic import BaseGameLogic
 
 game_root_dir = "./games/duel"
@@ -18,9 +18,9 @@ PST_EXPLODED = 4
 STOP_TO_CHARGE_WAIT_MS = 10
 CHARGE_TO_FIRE_WAIT_PER_POWER_MS = 55
 PLAYER_INITIAL_SPEED_PX_F = 3
-PLAYER_BASE_POWER_POINTS = 20
+PLAYER_BASE_POWER_POINTS = 10
 PLAYER_BASE_LENGTH_PX = 40
-PLAYER_MIN_BASE_LENGTH_PX = 5
+PLAYER_MIN_BASE_LENGTH_PX = 8
 
 PROJECTILE_BLAST_RADIUS = 2
 PROJECTILE_SPEED = 2
@@ -150,8 +150,7 @@ HIT_MELODY = [(6, 7, 1), (4, 4, 1), (3, 1, 1)]
 class Player:
     def __init__(
         self,
-        time,
-        display,
+        device: GameDevice,
         field_start: int,
         field_end: int,
         bezel_start: int,
@@ -162,8 +161,9 @@ class Player:
         shoot_sound: Sound = None,
     ):
         # Game access
-        self.time = time
-        self.display = display
+        self.device = device
+        self.time = device.time
+        self.display = device.display
 
         # Game Setup
         self.field_start = field_start
@@ -181,38 +181,22 @@ class Player:
         self.position = position
         self.direction = 1 - self.position * 2  # 1 or -1
         self.x = self.field_width // 2
-        self.y = 0 if position == PLAYER_POSITION_TOP else display.height - 1
+        self.y = 0 if position == PLAYER_POSITION_TOP else self.display.height - 1
 
         # State initialization
         self.play_state: int = PST_INIT
         self.play_state_start: int = 0
         self.power_points = power_points
 
-        self.center = display.get_buffer(
-            bytearray(
-                (
-                    0b0000_0000,
-                    0b0000_0000,
-                    0b0011_1100,
-                    0b0011_1100,
-                    0b1110_1110,
-                    0b0111_0111,
-                    0b0000_0011,
-                    0b1100_0000,
-                    0b0000_0001,
-                    0b1000_0000,
-                )
-            ),
-            16,
-            5,
-        )
-
         self.vx = initialSpeed
         self.projectile = None
         self.charge_pct = 0
 
+        # Display assets setup
+        self.init_display_assets()
+
         # Charge / Power Bars
-        bar_height = display.height // 2
+        bar_height = self.display.height // 2
         bar_width = self.bezel_width
         bar_direction = (
             BAR_FILL_DIRECTION_TTB
@@ -229,24 +213,96 @@ class Player:
             if position == PLAYER_POSITION_TOP
             else (
                 bezel_start,  # charge bar start x
-                display.height - bar_height,
+                self.display.height - bar_height,
                 bar_width,
                 bar_height,
             )
         )
         self.charge_bar = ChargeBar(
-            display,
+            self.display,
             bar_direction,
             bar_rect,
         )
         self.power_bar = PowerBar(
-            display,
+            self.display,
             bar_direction,
             bar_rect,
             power_points,
         )
 
         self.update_power(0)
+
+    def init_display_assets(self):
+        device = self.device
+        flip_v = self.position == PLAYER_POSITION_BOTTOM
+
+        self.ship_hull_sprite = device.load_display_asset(
+            game_root_dir + "/assets/ship-hull.pbm", flip_v=flip_v
+        )
+        self.ship_wing_ext_sprite = device.load_display_asset(
+            game_root_dir + "/assets/ship-wing-ext.pbm", flip_v=flip_v
+        )
+        self.ship_wingtip_left_sprite = device.load_display_asset(
+            game_root_dir + "/assets/ship-wingtip-left.pbm", flip_v=flip_v
+        )
+        self.ship_wingtip_right_sprite = device.load_display_asset(
+            game_root_dir + "/assets/ship-wingtip-right.pbm", flip_v=flip_v
+        )
+
+    def build_ship_display_asset(self):
+        display = self.display
+        ship_hull_sprite = self.ship_hull_sprite
+        left_wingtip_sprite = self.ship_wingtip_left_sprite
+        right_wingtip_sprite = self.ship_wingtip_right_sprite
+        wing_ext_sprite = self.ship_wing_ext_sprite
+
+        target_w = int(self.player_width)
+        middle_w = target_w // 2
+        target_h = self.ship_hull_sprite.h
+        full_ship_buffer = display.get_buffer(
+            bytearray(((target_w + 7) // 8) * target_h),
+            target_w,
+            target_h,
+        )
+        ship_hull_start_x = middle_w - ship_hull_sprite.w // 2
+        display.blit_onto(
+            ship_hull_sprite.buffer,
+            full_ship_buffer,
+            ship_hull_start_x,
+            0,
+        )
+        if target_w > ship_hull_sprite.w:
+            display.blit_onto(left_wingtip_sprite.buffer, full_ship_buffer, 0, 0)
+            display.blit_onto(
+                right_wingtip_sprite.buffer,
+                full_ship_buffer,
+                target_w - left_wingtip_sprite.w,
+                0,
+            )
+
+            if (
+                target_w
+                - left_wingtip_sprite.w
+                - right_wingtip_sprite.w
+                - ship_hull_sprite.w
+                > 0
+            ):
+                for ext_pos_x in range(
+                    left_wingtip_sprite.w, ship_hull_start_x, wing_ext_sprite.w
+                ):
+                    display.blit_onto(
+                        wing_ext_sprite.buffer,
+                        full_ship_buffer,
+                        ext_pos_x,
+                        0,
+                    )
+                    display.blit_onto(
+                        wing_ext_sprite.buffer,
+                        full_ship_buffer,
+                        target_w - ext_pos_x - 1,
+                        0,
+                    )
+        self.ship_sprite = GameDisplayAsset(full_ship_buffer, target_w, target_h)
 
     def play(self, button):
         # progress state machine
@@ -317,6 +373,7 @@ class Player:
         self.charge_bar.set_full_charge_pct(
             self.power_points / PLAYER_BASE_POWER_POINTS
         )
+        self.build_ship_display_asset()
 
     def move(self):
         field_start = self.field_start
@@ -355,20 +412,11 @@ class Player:
         if curr_state == PST_EXPLODED:
             display.rect(x, y, 1, 1, 1)
         else:
-            player_half_width = self.player_width // 2
-            # display.blit(
-            #     self.sprite,
-            #     self.x - 8,
-            #     self.y + (0 if self.position == PLAYER_POSITION_TOP else -5),
-            # )
-            # display.line(
-            #     int(x - player_half_width), y, int(x + player_half_width), y, 1
-            # )
-            dh = 10
+            ship_sprite = self.ship_sprite
+            ship_helf_width = ship_sprite.w // 2
+            dh = ship_sprite.h
             draw_y = self.y if self.position == PLAYER_POSITION_TOP else self.y - dh + 1
-            display.rect(
-                int(x - player_half_width), draw_y, int(self.player_width), dh, 1
-            )
+            display.blit(ship_sprite.buffer, self.x - ship_helf_width, draw_y)
 
         # Draw the projectile
         if self.projectile:
@@ -414,6 +462,7 @@ GST_ROUND_ENDED = 3
 
 GST_ROUNDED_ENDED_DELAY_MS = 2000
 
+
 class GameLogic(BaseGameLogic):
     def __init__(self, device: GameDevice) -> None:
         self.screen_width = device.display.width
@@ -433,8 +482,7 @@ class GameLogic(BaseGameLogic):
         )
 
         self.game_state = GST_INIT
-        a = game_root_dir + "/assets/ship_sprite.pbm"
-        self.sprite = self.device.load_display_asset(a)
+
         print("game loaded")
 
     def initialize_round(self):
@@ -442,8 +490,7 @@ class GameLogic(BaseGameLogic):
         self.round_won = False
         self.count_down_to_invert = 0
         self.top_player = Player(
-            self.device.time,
-            self.device.display,
+            self.device,
             self.field_start,
             self.field_end,
             0,  # bezel
@@ -454,8 +501,7 @@ class GameLogic(BaseGameLogic):
             shoot_sound=self.shoot_sound,
         )
         self.bottom_player = Player(
-            self.device.time,
-            self.device.display,
+            self.device,
             self.field_start,
             self.field_end,
             self.field_end,  # bezel

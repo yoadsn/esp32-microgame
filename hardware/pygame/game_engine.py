@@ -94,6 +94,9 @@ class MockGameDisplay(GameDisplay):
     def blit(self, buf, x, y):
         self.buffer.blit(buf, [x, y])
 
+    def blit_onto(self, buf_src: pygame.Surface, buf_dest: pygame.Surface, x, y):
+        buf_dest.blit(buf_src, [x, y])
+
 
 class MockTime(GameTime):
     def __init__(self) -> None:
