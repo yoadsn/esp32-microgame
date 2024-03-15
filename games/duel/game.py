@@ -368,7 +368,7 @@ class Player:
                 player_x1 = self.x - player_half_width
                 if x2 >= player_x1:
                     player_x2 = self.x + player_half_width
-                    if x1 >= player_x2:
+                    if x1 <= player_x2:
                         return True
         return False
 
