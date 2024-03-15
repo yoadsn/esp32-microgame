@@ -17,13 +17,13 @@ PST_EXPLODED = 4
 
 STOP_TO_CHARGE_WAIT_MS = 10
 CHARGE_TO_FIRE_WAIT_PER_POWER_MS = 55
-PLAYER_INITIAL_SPEED_PX_F = 3
+PLAYER_INITIAL_SPEED_PX_F = 4
 PLAYER_BASE_POWER_POINTS = 10
 PLAYER_BASE_LENGTH_PX = 40
 PLAYER_MIN_BASE_LENGTH_PX = 8
 
 PROJECTILE_BLAST_RADIUS = 2
-PROJECTILE_SPEED = 2
+PROJECTILE_SPEED = 3
 
 
 class Sound:
@@ -346,18 +346,20 @@ class Player:
                 self.direction,  # go up (pos 1) or down (pos 0)
             )
 
-    def check_hit(self, rect):
+    def check_hit(self, hit_rect):
         if self.check_exploded():
             return False
 
-        x1, y1, x2, y2 = rect
+        x1, y1, x2, y2 = hit_rect
+        player_y1 = self.y if self.position == PLAYER_POSITION_TOP else self.y - 8
+        player_y2 = self.y + 8 if self.position == PLAYER_POSITION_TOP else self.y
         # Why the ugly nested if? To save on calcs
-        if y1 <= self.y and y2 >= self.y:
+        if not (y2 < player_y1 or y1 > player_y2):
             player_half_width = self.player_width // 2
-            player_start_x = self.x - player_half_width
-            if x2 >= player_start_x:
-                player_end_x = self.x + player_half_width
-                if x1 <= player_end_x:
+            player_x1 = self.x - player_half_width
+            if not x2 < player_x1:
+                player_x2 = self.x + player_half_width
+                if not x1 > player_x2:
                     return True
         return False
 
@@ -406,12 +408,8 @@ class Player:
         curr_state = self.play_state
         display = self.display
 
-        x, y = self.x, self.y
-
         # player bar
-        if curr_state == PST_EXPLODED:
-            display.rect(x, y, 1, 1, 1)
-        else:
+        if curr_state != PST_EXPLODED:
             ship_sprite = self.ship_sprite
             ship_helf_width = ship_sprite.w // 2
             dh = ship_sprite.h
