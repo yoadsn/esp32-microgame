@@ -351,16 +351,25 @@ class Player:
             return False
 
         x1, y1, x2, y2 = hit_rect
-        player_y1 = self.y if self.position == PLAYER_POSITION_TOP else self.y - 8
-        player_y2 = self.y + 8 if self.position == PLAYER_POSITION_TOP else self.y
+        player_y1 = (
+            self.y
+            if self.position == PLAYER_POSITION_TOP
+            else self.y - self.player_height
+        )
         # Why the ugly nested if? To save on calcs
-        if not (y2 < player_y1 or y1 > player_y2):
-            player_half_width = self.player_width // 2
-            player_x1 = self.x - player_half_width
-            if not x2 < player_x1:
-                player_x2 = self.x + player_half_width
-                if not x1 > player_x2:
-                    return True
+        if y2 >= player_y1:
+            player_y2 = (
+                self.y + self.player_height
+                if self.position == PLAYER_POSITION_TOP
+                else self.y
+            )
+            if y1 <= player_y2:
+                player_half_width = self.player_width // 2
+                player_x1 = self.x - player_half_width
+                if x2 >= player_x1:
+                    player_x2 = self.x + player_half_width
+                    if x1 >= player_x2:
+                        return True
         return False
 
     def check_exploded(self):
@@ -372,6 +381,7 @@ class Player:
             PLAYER_MIN_BASE_LENGTH_PX,
             PLAYER_BASE_LENGTH_PX * (self.power_points / PLAYER_BASE_POWER_POINTS),
         )
+        self.player_height = self.ship_hull_sprite.h
         self.charge_bar.set_full_charge_pct(
             self.power_points / PLAYER_BASE_POWER_POINTS
         )
