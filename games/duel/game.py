@@ -1,7 +1,7 @@
 from random import random
 from game_device import GameDevice, GameDisplayAsset
 from game_logic import BaseGameLogic
-from games.duel.ufos import Ufo, UfoTypes, get_random_ufo_type
+from games.duel.ufos import Ufo, UfoTypes, get_random_ufo_type, init_display_assets
 
 game_root_dir = "./games/duel"
 
@@ -445,9 +445,12 @@ class Player:
             return
 
         player_half_width = self.player_width // 2
-        if curr_state == PST_DEFENSIVE and not self.has_ufo_type(UfoTypes.FROZEN):
+        if curr_state == PST_DEFENSIVE:
             # Normal defensive movement logic
-            self.x += self.vx
+            speed = self.vx
+            if self.has_ufo_type(UfoTypes.SLOW):
+                speed = speed * 0.25
+            self.x += speed
             if (
                 self.x <= field_start + player_half_width
                 or self.x >= field_end - player_half_width
@@ -557,6 +560,8 @@ class GameLogic(BaseGameLogic):
         self.capture_ufo_sound = Sound(
             self.device.audio, self.device.audio.load_melody(CAPTURE_UFO_MELODY)
         )
+
+        init_display_assets(self.device)
 
         self.game_state = GST_INIT
 
@@ -736,11 +741,15 @@ class GameLogic(BaseGameLogic):
         if shooter.missile and not target.is_cpatured():
             proj_rect = shooter.missile.get_hit_rect()
             if target.check_hit(proj_rect):
-                if target.type == UfoTypes.DAMAGE:
+                if target.type == UfoTypes.DAMAGE or target.type == UfoTypes.POWER:
                     shooter.capture_ufo(None)
-                    shooter.update_power(-1)
-                    self.count_down_to_invert = 5
-                    self.hit_sound.play()
+                    if target.type == UfoTypes.DAMAGE:
+                        shooter.update_power(-1)
+                        self.count_down_to_invert = 5
+                        self.hit_sound.play()
+                    else:
+                        shooter.update_power(1)
+                        self.capture_ufo_sound.play()
                     target.dead = True
                 else:
                     shooter.capture_ufo(target)

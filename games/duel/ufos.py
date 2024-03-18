@@ -2,12 +2,37 @@ from random import random
 from math import sin, pi
 from game_device import GameDevice
 
+game_root_dir = "./games/duel"
+
 
 class UfoTypes:
     SHIELD = 0
     RAPID_FIRE = 1
     DAMAGE = 2
-    FROZEN = 3
+    SLOW = 3
+    POWER = 4
+
+
+UFO_TYPES_SPRITES = []
+
+
+def init_display_assets(device: GameDevice):
+    global UFO_TYPES_SPRITES
+    UFO_TYPES_SPRITES.append(
+        device.load_display_asset(game_root_dir + "/assets/ufo-shield.pbm")
+    )
+    UFO_TYPES_SPRITES.append(
+        device.load_display_asset(game_root_dir + "/assets/ufo-rapid-fire.pbm")
+    )
+    UFO_TYPES_SPRITES.append(
+        device.load_display_asset(game_root_dir + "/assets/ufo-bomb.pbm")
+    )
+    UFO_TYPES_SPRITES.append(
+        device.load_display_asset(game_root_dir + "/assets/ufo-slowdown.pbm")
+    )
+    UFO_TYPES_SPRITES.append(
+        device.load_display_asset(game_root_dir + "/assets/ufo-powerup.pbm")
+    )
 
 
 # Probs are relative to the total probs on all types
@@ -19,10 +44,11 @@ UFO_TYPES_CONFIG = [
     (1, 0.6, 4000),  # shield
     (4, 1.2, 5000),  # rapid fire
     (2, 0.4, 0),  # damage
-    (4, 0.4, 3000),  # frozen
+    (4, 0.4, 3000),  # slow
+    (3, 0.7, 0),  # power
 ]
 
-UFO_TOTAL_PROBS = sum(prob for (prob, speed, ttl) in UFO_TYPES_CONFIG)
+UFO_TOTAL_PROBS = sum(tc[UFO_CONFIG_PROB] for tc in UFO_TYPES_CONFIG)
 UFO_TYPES_CUMM_PROBS = []
 prob_so_far = 0
 for tp in range(0, len(UFO_TYPES_CONFIG)):
@@ -65,6 +91,7 @@ class Ufo:
         self.captured_at_ticks_ms: int = 0
         self.time_to_live_ms: int = UFO_TYPES_CONFIG[type][UFO_CONFIG_TTL]
         self.dead = False
+        self.sprite = UFO_TYPES_SPRITES[type]
 
     def move(self):
         if self.captured:
@@ -73,7 +100,7 @@ class Ufo:
             )
             if capture_time_ms > self.time_to_live_ms:
                 self.dead = True
-        else:
+        elif not self.dead:
             self.x += self.direction_x * self.speed
 
             # Add a wobble effect around main trajectory
@@ -86,16 +113,17 @@ class Ufo:
         prison_end_x: int = None,
         prison_end_y: int = None,
     ):
+        center_x = self.x
+        center_y = self.y
         if not self.dead:
             if self.captured:
                 center_x = (prison_end_x + prison_start_x) // 2
                 center_y = (prison_end_y + prison_start_y) // 2
-                self.display.text(
-                    f"{self.type}", center_x - self.half_w, center_y - self.half_h
-                )
-            else:
-                # TEMP - no. instead of icon
-                self.display.text(f"{self.type}", int(self.x), int(self.y))
+            self.display.blit(
+                self.sprite.buffer,
+                center_x - self.half_w,
+                center_y - self.half_h,
+            )
 
     def check_hit(self, hit_rect):
         if not self.dead:
@@ -103,7 +131,7 @@ class Ufo:
             ufo_y1 = self.y
             # Why the ugly nested if? To save on calcs
             if y2 >= ufo_y1:
-                ufo_y2 = self.y + self.width
+                ufo_y2 = self.y + self.height
                 if y1 <= ufo_y2:
                     ufo_x1 = self.x - self.half_w
                     if x2 >= ufo_x1:
