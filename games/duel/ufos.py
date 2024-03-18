@@ -19,10 +19,10 @@ UFO_CONFIG_SPEED = 1
 UFO_CONFIG_TTL = 2
 UFO_TYPES_CONFIG = [
     # prob, speed, ttl
-    (1, 0.5, 4000),
-    (7, 0.6, 5000),
-    (1, 0.4, 0),
-    (4, 0.4, 3000),
+    (1, 0.6, 4000),  # shield
+    (4, 1.2, 5000),  # rapid fire
+    (2, 0.4, 0),  # damage
+    (4, 0.4, 3000),  # frozen
 ]
 
 UFO_TOTAL_PROBS = sum(prob for (prob, speed, ttl) in UFO_TYPES_CONFIG)
@@ -46,14 +46,14 @@ class Ufo:
     def __init__(
         self,
         device: GameDevice,
-        x,
+        field_start_x,
+        field_end_x,
         y,
         type: int = UfoTypes.SHIELD,
         direction_x=0,
     ):
         self.display = device.display
         self.time = device.time
-        self.x = x
         self.y = y
         self.type = type
         self.direction_x = direction_x
@@ -63,6 +63,7 @@ class Ufo:
         self.height = 8
         self.half_w = self.width // 2
         self.half_h = self.height // 2
+        self.x = field_start_x if direction_x == 1 else field_end_x - self.width
         self.captured = False
         self.captured_at_ticks_ms: int = 0
         self.time_to_live_ms: int = UFO_TYPES_CONFIG[type][UFO_CONFIG_TTL]
@@ -81,10 +82,20 @@ class Ufo:
             # Add a wobble effect around main trajectory
             self.y = self.base_y + sin(self.x / 20 * pi * 2) * 5
 
-    def draw(self):
+    def draw(
+        self,
+        prison_start_x: int = None,
+        prison_start_y: int = None,
+        prison_end_x: int = None,
+        prison_end_y: int = None,
+    ):
         if not self.dead:
             if self.captured:
-                self.display.rect(30, 20, 2, 8, 1)
+                center_x = (prison_end_x + prison_start_x) // 2
+                center_y = (prison_end_y + prison_start_y) // 2
+                self.display.text(
+                    f"{self.type}", center_x - self.half_w, center_y - self.half_h
+                )
             else:
                 # TEMP - no. instead of icon
                 self.display.text(f"{self.type}", int(self.x), int(self.y))

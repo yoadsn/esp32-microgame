@@ -5,8 +5,6 @@ from games.duel.ufos import Ufo, UfoTypes, get_random_ufo_type
 
 game_root_dir = "./games/duel"
 
-FIELD_WIDTH = 116
-
 PLAYER_POSITION_TOP = 0
 PLAYER_POSITION_BOTTOM = 1
 
@@ -246,6 +244,13 @@ class Player:
             power_points,
         )
 
+        self.ufo_prison_start_x = self.bezel_start
+        self.ufo_prison_end_x = self.bezel_end
+        self.ufo_prison_start_y = bar_height if position == PLAYER_POSITION_TOP else 0
+        self.ufo_prison_end_y = (
+            self.display.height - 1 if position == PLAYER_POSITION_TOP else bar_height
+        )
+
         self.update_power(0)
 
     def init_display_assets(self):
@@ -478,7 +483,12 @@ class Player:
 
         # Draw any cpatured ufos
         if self.ufo:
-            self.ufo.draw()
+            self.ufo.draw(
+                self.ufo_prison_start_x,
+                self.ufo_prison_start_y,
+                self.ufo_prison_end_x,
+                self.ufo_prison_end_y,
+            )
 
         if curr_state == PST_CHARGING:
             # Draw Charging progress
@@ -511,6 +521,8 @@ class ComputerController:
             self.last_shot_time = current_time
             self.player.play(False)
 
+
+FIELD_WIDTH = 116
 
 GST_INIT = -1
 GST_ROUND_INIT = 0
@@ -586,20 +598,21 @@ class GameLogic(BaseGameLogic):
             time_since_last_spawn = time.ticks_diff(
                 time.ticks_ms(), self.last_ufo_spawn_time_ms
             )
-            if time_since_last_spawn > UFO_MIN_TIME_BETWEEN_SPAWNS_MS:
+            if (
+                time_since_last_spawn > UFO_MIN_TIME_BETWEEN_SPAWNS_MS
+                or self.last_ufo_spawn_time_ms == 0
+            ):
                 # prob is exp decreasing as UFOs are spawned
                 ufo_spawn_prob = pow(UFO_SPAWN_CHANCE, curr_ufo_count + 1)
-                if random() < ufo_spawn_prob:  # 5% spawn chance
+                if random() < ufo_spawn_prob:  # spawn chance
                     self.last_ufo_spawn_time_ms = time.ticks_ms()
                     ufo_type = get_random_ufo_type()
                     ufo_direction = 1 if random() < 0.5 else -1
-                    ufo_x_start = (
-                        self.field_start if ufo_direction == 1 else self.field_end - 1
-                    )
                     self.ufos.append(
                         Ufo(
                             self.device,
-                            ufo_x_start,
+                            self.field_start,
+                            self.field_end,
                             self.screen_height // 2,
                             ufo_type,
                             ufo_direction,
@@ -681,11 +694,6 @@ class GameLogic(BaseGameLogic):
         display = self.device.display
         # Clear display and redraw players
         display.fill(0)
-
-        display.line(
-            self.field_start, 0, self.field_start, self.device.display.height, 1
-        )
-        display.line(self.field_end, 0, self.field_end, self.device.display.height, 1)
 
         if self.game_state == GST_ROUND_PRE_RUN:
             display.center_text("Press Start", 1)
