@@ -135,12 +135,17 @@ AUDIO_BPM = 480
 
 
 class MockGameAudio(GameAudio):
-    def __init__(self) -> None:
+    def __init__(self, mute=False) -> None:
         pygame.mixer.pre_init(AUDIO_SAMPLE_RATE, -AUDIO_BIT_DEPTH, 1)
+        self.mute = mute
         self.sounds = []
         self.last_played_interruptable = True
 
     def play(self, sound_id, interruptable=True):
+        if self.mute:
+            pygame.mixer.stop()
+            return
+
         if pygame.mixer.get_busy():
             if self.last_played_interruptable:
                 pygame.mixer.stop()
@@ -189,7 +194,7 @@ class MockGameAudio(GameAudio):
 
 class GameEngine:
     def __init__(self) -> None:
-        self.audio = MockGameAudio()
+        self.audio = MockGameAudio(mute=False)
         pygame.init()
         self.display = MockGameDisplay(128, 64, 3)
         self.time = MockTime()
