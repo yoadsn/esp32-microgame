@@ -475,28 +475,27 @@ class Player:
         self.ufo = None
 
     def move(self):
-        field_start = self.field_start
-        field_end = self.field_end
-        width = self.field_width
+        player_half_width = self.player_width // 2
+        limit_x_start = self.field_start + player_half_width
+        limit_x_end = self.field_end - player_half_width
         height = self.display.height
         curr_state = self.play_state
 
         if curr_state == PST_EXPLODED:
             return
 
-        player_half_width = self.player_width // 2
         if curr_state == PST_DEFENSIVE:
             # Normal defensive movement logic
             speed = self.vx
             if self.has_ufo_type(UfoTypes.SLOW):
                 speed = speed * 0.25
             self.x += speed
-            if (
-                self.x <= field_start + player_half_width
-                or self.x >= field_end - player_half_width
-            ):
+            if self.x <= limit_x_start:
+                self.x = limit_x_start
                 self.vx *= -1
-                self.x = self.x
+            elif self.x >= limit_x_end:
+                self.x = limit_x_end
+                self.vx *= -1
 
         # Move projectile if it exists
         if self.missile:
