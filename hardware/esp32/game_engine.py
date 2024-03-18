@@ -30,7 +30,8 @@ def tim_cb(t):
     freqs, durations, melody_note_idx, melody_duration_counter, play_request_id, interruptable = (
         melodies_queue[0]
     )
-    if melody_duration_counter == 0:
+    duration_counter = melody_duration_counter
+    if duration_counter == 0:
         duration_counter = durations[melody_note_idx]
     f = freqs[melody_note_idx]
 
@@ -59,7 +60,7 @@ def tim_cb(t):
                 freqs,
                 durations,
                 melody_note_idx,
-                melody_duration_counter,
+                duration_counter,
                 play_request_id,
                 interruptable
             )

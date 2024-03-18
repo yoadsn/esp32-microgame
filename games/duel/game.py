@@ -155,7 +155,46 @@ class PowerBar(ProgressBar):
         super().draw(int(self.height * power / self.max_power))
 
 
-SHOOT_MELODY = [(6, 1, 1), (5, 1, 1)]
+pause = (0, 0, 1)
+INTRO_MELODY = [
+    (4, 2, 1),
+    pause,
+    (4, 5, 2),
+    #
+    (4, 2, 1),
+    pause,
+    (4, 2, 1),
+    (4, 7, 1),
+    #
+    (4, 2, 1),
+    (4, 7, 1),
+    (4, 5, 2),
+    #
+    (4, 7, 1),
+    pause,
+    (4, 7, 1),
+    pause,
+    #
+    (4, 7, 2),
+    (4, 5, 1),
+    pause,
+    #
+    (4, 7, 1),
+    (4, 2, 1),
+    (4, 5, 1),
+    pause,
+    #
+    (4, 7, 1),
+    pause,
+    (4, 5, 1),
+    (4, 7, 1),
+    #
+    (4, 2, 1),
+    pause,
+    (4, 2, 1),
+    pause,
+]
+SHOOT_MELODY = [(6, 1, 1), (5, 1, 2)]
 HIT_MELODY = [(6, 7, 1), (4, 4, 1), (3, 1, 1)]
 CAPTURE_UFO_MELODY = [(4, 3, 1), (5, 3, 1), (6, 3, 1)]
 
@@ -477,7 +516,9 @@ class Player:
             ship_sprite = self.ship_sprite
             ship_helf_width = ship_sprite.w // 2
             dh = ship_sprite.h
-            draw_y = self.y if self.position == PLAYER_POSITION_TOP else int(self.y) - dh + 1
+            draw_y = (
+                self.y if self.position == PLAYER_POSITION_TOP else int(self.y) - dh + 1
+            )
             display.blit(ship_sprite.buffer, int(self.x) - ship_helf_width, draw_y)
 
         # Draw the missile
@@ -551,6 +592,9 @@ class GameLogic(BaseGameLogic):
         self.field_start = (self.device.display.width - self.field_width) // 2
         self.field_end = self.device.display.width - self.field_start
 
+        self.intro_sound = Sound(
+            self.device.audio, self.device.audio.load_melody(INTRO_MELODY), False
+        )
         self.shoot_sound = Sound(
             self.device.audio, self.device.audio.load_melody(SHOOT_MELODY)
         )
@@ -569,6 +613,7 @@ class GameLogic(BaseGameLogic):
 
     def initialize_round(self):
         print("round init")
+        self.intro_sound.play()
         self.round_won = False
         self.count_down_to_invert = 0
         self.bot_player = Player(
