@@ -2,9 +2,6 @@ from random import random
 from math import sin, pi
 from game_device import GameDevice
 
-BASE_UFO_SPEED = 0.5
-BASE_UFO_TTL = 20000
-
 
 class UfoTypes:
     SHIELD = 0
