@@ -195,8 +195,9 @@ INTRO_MELODY = [
     pause,
 ]
 SHOOT_MELODY = [(6, 1, 1), (5, 1, 2)]
-HIT_MELODY = [(6, 7, 1), (4, 4, 1), (3, 1, 1)]
-CAPTURE_UFO_MELODY = [(4, 3, 1), (5, 3, 1), (6, 3, 1)]
+HIT_MELODY = [(3, 6, 1), (3, 5, 1)]
+HIT_OTHER_MELODY = [(3, 5, 1), (3, 6, 1)]
+CAPTURE_UFO_MELODY = [(6, 4, 1), (6, 5, 1), (6, 6, 1)]
 
 
 class Player:
@@ -601,6 +602,9 @@ class GameLogic(BaseGameLogic):
         self.hit_sound = Sound(
             self.device.audio, self.device.audio.load_melody(HIT_MELODY)
         )
+        self.hit_other_sound = Sound(
+            self.device.audio, self.device.audio.load_melody(HIT_OTHER_MELODY)
+        )
         self.capture_ufo_sound = Sound(
             self.device.audio, self.device.audio.load_melody(CAPTURE_UFO_MELODY)
         )
@@ -778,7 +782,10 @@ class GameLogic(BaseGameLogic):
             proj_rect = shooter.missile.get_hit_rect()
             if target.check_hit(proj_rect):
                 target.update_power(-1)
-                self.hit_sound.play()
+                if shooter == self.human_player:
+                    self.hit_other_sound.play()
+                else:
+                    self.hit_sound.play()
                 shooter.missile = None  # Can't hit again!
                 self.count_down_to_invert = 5
 
