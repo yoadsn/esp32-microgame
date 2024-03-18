@@ -519,7 +519,15 @@ class Player:
             draw_y = (
                 self.y if self.position == PLAYER_POSITION_TOP else int(self.y) - dh + 1
             )
-            display.blit(ship_sprite.buffer, int(self.x) - ship_helf_width, draw_y)
+            draw_start_x = int(self.x) - ship_helf_width
+            display.blit(ship_sprite.buffer, draw_start_x, draw_y)
+            if self.has_ufo_type(UfoTypes.SHIELD):
+                shield_y = (
+                    dh + 2 if self.position == PLAYER_POSITION_TOP else draw_y - 2
+                )
+                display.line(
+                    draw_start_x, shield_y, draw_start_x + ship_sprite.w, shield_y, 1
+                )
 
         # Draw the missile
         if self.missile:
