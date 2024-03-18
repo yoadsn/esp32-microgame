@@ -121,8 +121,8 @@ class Ufo:
                 center_y = (prison_end_y + prison_start_y) // 2
             self.display.blit(
                 self.sprite.buffer,
-                center_x - self.half_w,
-                center_y - self.half_h,
+                int(center_x) - self.half_w,
+                int(center_y) - self.half_h,
             )
 
     def check_hit(self, hit_rect):

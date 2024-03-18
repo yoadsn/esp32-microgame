@@ -157,7 +157,7 @@ class PowerBar(ProgressBar):
 
 SHOOT_MELODY = [(6, 1, 1), (5, 1, 1)]
 HIT_MELODY = [(6, 7, 1), (4, 4, 1), (3, 1, 1)]
-CAPTURE_UFO_MELODY = [(4, 3, 1), (5, 3, 1), (6, 3, 2)]
+CAPTURE_UFO_MELODY = [(4, 3, 1), (5, 3, 1), (6, 3, 1)]
 
 
 class Player:
@@ -477,8 +477,8 @@ class Player:
             ship_sprite = self.ship_sprite
             ship_helf_width = ship_sprite.w // 2
             dh = ship_sprite.h
-            draw_y = self.y if self.position == PLAYER_POSITION_TOP else self.y - dh + 1
-            display.blit(ship_sprite.buffer, self.x - ship_helf_width, draw_y)
+            draw_y = self.y if self.position == PLAYER_POSITION_TOP else int(self.y) - dh + 1
+            display.blit(ship_sprite.buffer, int(self.x) - ship_helf_width, draw_y)
 
         # Draw the missile
         if self.missile:
