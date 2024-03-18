@@ -554,28 +554,28 @@ class GameLogic(BaseGameLogic):
         print("round init")
         self.round_won = False
         self.count_down_to_invert = 0
-        self.top_player = Player(
-            self.device,
-            self.field_start,
-            self.field_end,
-            0,  # bezel
-            self.field_start,  # bezel
-            position=PLAYER_POSITION_TOP,
-            power_points=PLAYER_BASE_POWER_POINTS,
-            initialSpeed=PLAYER_INITIAL_SPEED_PX_F,
-            shoot_sound=self.shoot_sound,
-        )
-        self.bottom_player = Player(
+        self.bot_player = Player(
             self.device,
             self.field_start,
             self.field_end,
             self.field_end,  # bezel
             self.device.display.width,  # bezel
-            position=PLAYER_POSITION_BOTTOM,
+            position=PLAYER_POSITION_TOP,
             power_points=PLAYER_BASE_POWER_POINTS,
             initialSpeed=PLAYER_INITIAL_SPEED_PX_F,
         )
-        self.npc = ComputerController(self.bottom_player)
+        self.human_player = Player(
+            self.device,
+            self.field_start,
+            self.field_end,
+            0,  # bezel
+            self.field_start,  # bezel
+            position=PLAYER_POSITION_BOTTOM,
+            power_points=PLAYER_BASE_POWER_POINTS,
+            initialSpeed=PLAYER_INITIAL_SPEED_PX_F,
+            shoot_sound=self.shoot_sound,
+        )
+        self.npc = ComputerController(self.bot_player)
         self.ufos: list[Ufo] = []
         self.last_ufo_spawn_time_ms = 0
 
@@ -614,7 +614,7 @@ class GameLogic(BaseGameLogic):
         button_pressed = self.device.button.value() == 0
 
         if curr_state == GST_ROUND_RUN:
-            if self.top_player.check_exploded() or self.bottom_player.check_exploded():
+            if self.bot_player.check_exploded() or self.human_player.check_exploded():
                 next_state = GST_ROUND_ENDED
 
         elif curr_state == GST_ROUND_INIT:
@@ -640,33 +640,33 @@ class GameLogic(BaseGameLogic):
             self.initialize_round()
 
         elif curr_state == GST_ROUND_ENDED:
-            self.round_won = self.bottom_player.check_exploded()
+            self.round_won = self.bot_player.check_exploded()
 
         elif curr_state == GST_ROUND_RUN:
             if prev_state == GST_ROUND_PRE_RUN:
                 self.start_game_tick = self.device.time.ticks_ms()
 
-            self.top_player.play(button_pressed)
+            self.human_player.play(button_pressed)
             self.npc.play()
             self.spawn_ufos()
 
     def move(self):
         if self.game_state == GST_ROUND_RUN:
             # Move players if in defensive mode
-            self.top_player.move()
-            self.bottom_player.move()
+            self.human_player.move()
+            self.bot_player.move()
 
             # missile-player hits
-            self.hit_player(self.top_player, self.bottom_player)
-            self.hit_player(self.bottom_player, self.top_player)
+            self.hit_player(self.human_player, self.bot_player)
+            self.hit_player(self.bot_player, self.human_player)
 
             # move UFOs
             for ufo in self.ufos:
                 if ufo:
                     ufo.move()
                     # missile-ufo hits
-                    self.hit_ufo(self.top_player, ufo)
-                    self.hit_ufo(self.bottom_player, ufo)
+                    self.hit_ufo(self.human_player, ufo)
+                    self.hit_ufo(self.bot_player, ufo)
 
                     # out of bounds UFO dead
                     if ufo.x < self.field_start or ufo.x > self.field_end - ufo.width:
@@ -695,8 +695,8 @@ class GameLogic(BaseGameLogic):
             else:
                 display.center_text("Lost..", 1)
 
-        self.top_player.draw()
-        self.bottom_player.draw()
+        self.bot_player.draw()
+        self.human_player.draw()
 
         # move UFOs
         for ufo in self.ufos:
