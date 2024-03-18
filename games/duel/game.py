@@ -1,8 +1,7 @@
-from math import sin
-import math
 from random import random
 from game_device import GameDevice, GameDisplayAsset
 from game_logic import BaseGameLogic
+from games.duel.ufos import Ufo, UfoTypes, get_random_ufo_type
 
 game_root_dir = "./games/duel"
 
@@ -71,113 +70,6 @@ class Missile:
             self.x + self.blast_radius,
             self.y + self.blast_radius,
         )
-
-
-BASE_UFO_SPEED = 0.5
-BASE_UFO_TTL = 20000
-
-
-UFO_TYPE_SHIELD = 0
-UFO_TYPE_RAPID_FIRE = 1
-UFO_TYPE_DAMAGE = 2
-UFO_TYPE_FROZEN = 3
-# Probs are relative to the total probs on all types
-UFO_TYPES_PROBS = [  # type, prob
-    (UFO_TYPE_SHIELD, 1),
-    (UFO_TYPE_RAPID_FIRE, 2),
-    (UFO_TYPE_DAMAGE, 1),
-    (UFO_TYPE_FROZEN, 4),
-]
-UFO_TOTAL_PROBS = sum(tp[1] for tp in UFO_TYPES_PROBS)
-UFO_TYPES_CUMM_PROBS = []
-prob_so_far = 0
-for tp in UFO_TYPES_PROBS:
-    this_type_prob = tp[1] / UFO_TOTAL_PROBS
-    prob_so_far += this_type_prob
-    UFO_TYPES_CUMM_PROBS.append((tp[0], prob_so_far))
-
-
-def get_random_ufo_type():
-    r = random()
-    for tp in UFO_TYPES_CUMM_PROBS:
-        if tp[1] >= r:
-            return tp[0]
-
-
-class Ufo:
-    def __init__(
-        self,
-        device: GameDevice,
-        x,
-        y,
-        type: int = UFO_TYPE_SHIELD,
-        direction_x=0,
-        speed=BASE_UFO_SPEED,
-    ):
-        self.display = device.display
-        self.time = device.time
-        self.x = x
-        self.y = y
-        self.type = type
-        self.direction_x = direction_x
-        self.speed = speed
-        self.base_y = self.y
-        self.width = 4
-        self.height = 4
-        self.half_w = self.width // 2
-        self.half_h = self.height // 2
-        self.captured = False
-        self.captured_at_ticks_ms: int = 0
-        self.time_to_live_ms: int = BASE_UFO_TTL
-        self.dead = False
-
-    def move(self):
-        if self.captured:
-            capture_time_ms = self.time.ticks_diff(
-                self.time.ticks_ms(), self.captured_at_ticks_ms
-            )
-            if capture_time_ms > self.time_to_live_ms:
-                self.dead = True
-        else:
-            self.x += self.direction_x * self.speed
-
-            # Add a wooble effect around main trajectory
-            self.y = self.base_y + sin(self.x / 20 * math.pi * 2) * 5
-
-    def draw(self):
-        if not self.dead:
-            if self.captured:
-                self.display.rect(30, 20, 2, 8, 1)
-            else:
-                self.display.rect(
-                    int(self.x - self.half_w),
-                    int(self.y - self.half_h),
-                    self.width,
-                    self.height,
-                    1,
-                )
-
-    def check_hit(self, hit_rect):
-        if not self.dead:
-            x1, y1, x2, y2 = hit_rect
-            ufo_y1 = self.y
-            # Why the ugly nested if? To save on calcs
-            if y2 >= ufo_y1:
-                ufo_y2 = self.y + self.width
-                if y1 <= ufo_y2:
-                    ufo_x1 = self.x - self.half_w
-                    if x2 >= ufo_x1:
-                        ufo_x2 = self.x + self.half_w
-                        if x1 <= ufo_x2:
-                            return True
-        return False
-
-    def set_captured(self):
-        self.captured_at_ticks_ms = self.time.ticks_ms()
-        self.captured = True
-
-    def is_cpatured(self):
-        return self.captured
 
 
 BAR_FILL_DIRECTION_TTB = 1
@@ -267,7 +159,7 @@ class PowerBar(ProgressBar):
 
 SHOOT_MELODY = [(6, 1, 1), (5, 1, 1)]
 HIT_MELODY = [(6, 7, 1), (4, 4, 1), (3, 1, 1)]
-CAPTURE_UFO_MELODY = [(3, 3, 1), (4, 4, 1), (5, 1, 1)]
+CAPTURE_UFO_MELODY = [(4, 3, 1), (5, 3, 1), (6, 3, 2)]
 
 
 class Player:
@@ -449,7 +341,7 @@ class Player:
                 elif curr_state == PST_CHARGING:
                     next_state = PST_CHARGING
                     charge_time = CHARGE_TO_FIRE_WAIT_PER_POWER_MS
-                    if self.has_ufo_type(UFO_TYPE_RAPID_FIRE):
+                    if self.has_ufo_type(UfoTypes.RAPID_FIRE):
                         charge_time = CHARGE_TO_FIRE_WAIT_PER_POWER_MS // 2
                     self.charge_pct = time_in_state / float(
                         charge_time * self.power_points
@@ -484,7 +376,7 @@ class Player:
         if self.check_exploded():
             return False
 
-        if self.has_ufo_type(UFO_TYPE_SHIELD):
+        if self.has_ufo_type(UfoTypes.SHIELD):
             return False
 
         x1, y1, x2, y2 = hit_rect
@@ -548,7 +440,7 @@ class Player:
             return
 
         player_half_width = self.player_width // 2
-        if curr_state == PST_DEFENSIVE and not self.has_ufo_type(UFO_TYPE_FROZEN):
+        if curr_state == PST_DEFENSIVE and not self.has_ufo_type(UfoTypes.FROZEN):
             # Normal defensive movement logic
             self.x += self.vx
             if (
@@ -777,7 +669,7 @@ class GameLogic(BaseGameLogic):
                     self.hit_ufo(self.bottom_player, ufo)
 
                     # out of bounds UFO dead
-                    if ufo.x < self.field_start or ufo.x > self.field_end:
+                    if ufo.x < self.field_start or ufo.x > self.field_end - ufo.width:
                         ufo.dead = True
 
             # Remove captured/dead UFOs - managed by players moving fwd if captured
@@ -836,7 +728,7 @@ class GameLogic(BaseGameLogic):
         if shooter.missile and not target.is_cpatured():
             proj_rect = shooter.missile.get_hit_rect()
             if target.check_hit(proj_rect):
-                if target.type == UFO_TYPE_DAMAGE:
+                if target.type == UfoTypes.DAMAGE:
                     shooter.capture_ufo(None)
                     shooter.update_power(-1)
                     self.count_down_to_invert = 5
