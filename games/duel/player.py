@@ -135,6 +135,7 @@ class Player:
         global SHIP_SPRITES_BTT
         # Used cached assets when possible
         if len(SHIP_SPRITES_TTB) == 0:
+            print("Loading ship assets...")
             device = self.device
             for btt in [False, True]:
                 flip_v = btt
@@ -161,6 +162,7 @@ class Player:
                         GAME_ROOT_DIR + "/assets/ship-wing-ext.pbm", flip_v=flip_v
                     )
                 )
+            print("done")
 
         self.sprites_store = (
             SHIP_SPRITES_TTB

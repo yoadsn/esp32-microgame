@@ -81,6 +81,7 @@ class Ufo:
         global UFO_TYPES_SPRITES
         # Only inititalize once - used cached assets otherwise
         if len(UFO_TYPES_SPRITES) == 0:
+            print("loading UFO assets..")
             device = self.device
             UFO_TYPES_SPRITES.append(
                 device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-shield.pbm")
@@ -97,6 +98,7 @@ class Ufo:
             UFO_TYPES_SPRITES.append(
                 device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-powerup.pbm")
             )
+            print("done.")
 
     def move(self):
         if self.captured:

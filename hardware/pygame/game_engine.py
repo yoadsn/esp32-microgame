@@ -21,18 +21,32 @@ class MockGameDisplay(GameDisplay):
         self.buffer = pygame.Surface([width, height])
         self.colors = [(0, 0, 0), (255, 255, 255)]
         self.inv_mask = pygame.Surface([width, height])
+        self.contrast_mask = pygame.Surface([width, height])
         self.inverted = False
+        self.contrast_level = 255
         pygame.display.set_caption("Game Engine")
 
     def invert(self, is_on):
         self.inverted = is_on == 1
 
+    def contrast(self, contrast: int):
+        self.contrast_level = int(min(max(0, contrast), 255))
+
     def show(self):
         to_apply = self.buffer
         if self.inverted:
             self.inv_mask.fill(self.colors[1])
-            self.inv_mask.blit(self.buffer, (0, 0), None, pygame.BLEND_SUB)
+            self.inv_mask.blit(to_apply, (0, 0), None, pygame.BLEND_SUB)
             to_apply = self.inv_mask
+
+        if self.contrast_level < 255:
+            # factor = self.contrast_level / 255
+            self.contrast_mask.fill(
+                (self.contrast_level, self.contrast_level, self.contrast_level)
+            )
+            self.contrast_mask.blit(to_apply, (0, 0), None, pygame.BLEND_MULT)
+            to_apply = self.contrast_mask
+
         scaled = pygame.transform.scale(
             to_apply, (self.width * self.scale, self.height * self.scale)
         )

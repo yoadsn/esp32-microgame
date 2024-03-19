@@ -81,7 +81,7 @@ class SSD1306(framebuf.FrameBuffer):
 
     def contrast(self, contrast):
         self.write_cmd(SET_CONTRAST)
-        self.write_cmd(contrast)
+        self.write_cmd(int(contrast))
 
     def invert(self, invert):
         self.write_cmd(SET_NORM_INV | (invert & 1))

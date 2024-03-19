@@ -99,6 +99,9 @@ def flip_sprite_bytes(
 
 
 class GameDisplay:
+    def contrast(self, contrast: int):
+        pass
+
     def show(self):
         pass
 

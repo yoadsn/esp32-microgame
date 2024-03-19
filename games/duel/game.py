@@ -1,3 +1,4 @@
+from math import pi, sin
 from random import random
 
 from game_device import GameDevice
@@ -22,7 +23,8 @@ from games.duel.bot_player import ComputerController
 
 FIELD_WIDTH = 116
 
-GST_INIT = -1
+GST_INIT = -2
+GST_PRELOADER = -1
 GST_ROUND_INIT = 0
 GST_ROUND_PRE_RUN = 1
 GST_ROUND_RUN = 2
@@ -47,9 +49,22 @@ class GameLogic(BaseGameLogic):
         self.field_start = (self.device.display.width - self.field_width) // 2
         self.field_end = self.device.display.width - self.field_start
 
+        print("Loading game...")
+
+        # Load only mandatory assets for the preloader
         self.intro_sound = Sound(
             self.device.audio, self.device.audio.load_melody(INTRO_MELODY), False
         )
+
+        self.banner_sprite = self.device.load_display_asset(
+            GAME_ROOT_DIR + "/assets/banner.pbm"
+        )
+
+        self.game_state = GST_INIT
+
+        print("game loading done")
+
+    def preload_assets(self):
         self.shoot_sound = Sound(
             self.device.audio, self.device.audio.load_melody(SHOOT_MELODY)
         )
@@ -63,17 +78,14 @@ class GameLogic(BaseGameLogic):
             self.device.audio, self.device.audio.load_melody(CAPTURE_UFO_MELODY)
         )
 
-        self.banner_sprite = self.device.load_display_asset(
-            GAME_ROOT_DIR + "/assets/banner.pbm"
-        )
-
-        self.game_state = GST_INIT
-
-        print("game loaded")
+        # Crate a ship and a UFO to force them to load assets
+        # for the first time
+        Player(self.device, 0, 1, 0, 1)
+        Ufo(self.device, 0, 1, 0)
+        # No need to storem them since they are not part of the game
 
     def initialize_round(self):
         print("round init")
-        self.intro_sound.play()
         self.round_won = False
         self.count_down_to_invert = 0
         self.bot_player = Player(
@@ -137,7 +149,6 @@ class GameLogic(BaseGameLogic):
                 next_state = GST_ROUND_ENDED
 
         elif curr_state == GST_ROUND_INIT:
-            self.banner_splash_start_time_ms = self.device.time.ticks_ms()
             next_state = GST_ROUND_PRE_RUN
 
         elif curr_state == GST_ROUND_PRE_RUN:
@@ -146,7 +157,9 @@ class GameLogic(BaseGameLogic):
 
         elif curr_state == GST_ROUND_ENDED:
             if time.ticks_diff(now, self.game_state_start) > GST_ROUNDED_ENDED_DELAY_MS:
-                next_state = GST_ROUND_INIT
+                next_state = GST_PRELOADER
+        elif curr_state == GST_INIT:
+            next_state = GST_PRELOADER
         else:
             next_state = GST_ROUND_INIT
 
@@ -156,7 +169,12 @@ class GameLogic(BaseGameLogic):
             self.game_state = curr_state = next_state
 
         # Act
-        if curr_state == GST_ROUND_INIT:
+        if curr_state == GST_PRELOADER:
+            self.intro_sound.play()
+            # allow the banner to splash as we prepare for a new round
+            self.banner_splash_start_time_ms = self.device.time.ticks_ms()
+        elif curr_state == GST_ROUND_INIT:
+            self.preload_assets()
             self.initialize_round()
 
         elif curr_state == GST_ROUND_ENDED:
@@ -200,31 +218,37 @@ class GameLogic(BaseGameLogic):
     def draw(self):
         time = self.device.time
         display = self.device.display
-        # Clear display and redraw players
-        display.fill(0)
 
-        if self.game_state == GST_ROUND_PRE_RUN:
+        # Set default contrast
+        display.contrast(255)
+
+        if self.game_state == GST_PRELOADER or self.game_state == GST_ROUND_INIT:
+            display.blit(self.banner_sprite.buffer, 0, 0)
+        elif self.game_state == GST_ROUND_PRE_RUN:
             time_since_banner_shown = time.ticks_diff(
                 time.ticks_ms(), self.banner_splash_start_time_ms
             )
             if time_since_banner_shown < BANNER_SHOW_TIME_MS:
                 display.blit(self.banner_sprite.buffer, 0, 0)
             else:
+                display.fill(0)
                 display.center_text("Press Start", 1)
+                display.contrast(135 + int(sin(time.ticks_ms() / 500 * pi) * 12) * 10)
         else:
+            display.fill(0)
+            self.bot_player.draw()
+            self.human_player.draw()
+
             if self.game_state == GST_ROUND_ENDED:
                 if self.round_won:
                     display.center_text("Victory", 1)
                 else:
                     display.center_text("Defeat", 1)
-
-            self.bot_player.draw()
-            self.human_player.draw()
-
-            # move UFOs
-            for ufo in self.ufos:
-                if ufo:
-                    ufo.draw()
+            else:
+                # move UFOs
+                for ufo in self.ufos:
+                    if ufo:
+                        ufo.draw()
 
             if self.count_down_to_invert > 0:
                 if self.game_state == GST_ROUND_ENDED:
