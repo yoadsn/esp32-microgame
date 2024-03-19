@@ -24,7 +24,9 @@ class Missile:
             self.y += self.direction_y * self.speed
 
     def draw(self):
-        self.display.pixel(int(self.x), int(self.y), 1)
+        base_x = int(self.x)
+        base_y = int(self.y)
+        self.display.line(base_x - 1, base_y, base_x, base_y, 1)
 
     def get_hit_rect(self):
         return (

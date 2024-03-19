@@ -20,7 +20,7 @@ UFO_CONFIG_TTL = 2
 UFO_TYPES_CONFIG = [
     # prob, speed, ttl
     (1, 0.6, 4000),  # shield
-    (4, 1.2, 5000),  # rapid fire
+    (4, 1.2, 3000),  # rapid fire
     (2, 0.4, 0),  # damage
     (4, 0.4, 3000),  # slow
     (3, 0.7, 0),  # power

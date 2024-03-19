@@ -15,3 +15,4 @@ mpremote \
     + cp -r games/duel/sound.py :\
     + cp -r games/duel/ufos.py :\
     + cp -r games/duel/assets :\
+    + reset

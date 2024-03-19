@@ -1,6 +1,6 @@
 from games.duel.env import GAME_ROOT_DIR
 from games.duel.sound import Sound
-from games.duel.missile import Missile
+from games.duel.missile import BASE_MISSILE_SPEED, Missile
 from game_device import GameDevice, GameDisplayAsset
 from games.duel.bars import (
     ChargeBar,
@@ -253,7 +253,7 @@ class Player:
                     next_state = PST_CHARGING
                     charge_time = CHARGE_TO_FIRE_WAIT_PER_POWER_MS
                     if self.has_ufo_type(UfoTypes.RAPID_FIRE):
-                        charge_time = CHARGE_TO_FIRE_WAIT_PER_POWER_MS // 2
+                        charge_time = CHARGE_TO_FIRE_WAIT_PER_POWER_MS // 3
                     self.charge_pct = time_in_state / float(
                         charge_time * self.power_points
                     )
@@ -274,6 +274,11 @@ class Player:
                 self.x,
                 self.y,
                 direction_y=self.direction,
+                speed=(
+                    BASE_MISSILE_SPEED * 2
+                    if self.has_ufo_type(UfoTypes.RAPID_FIRE)
+                    else BASE_MISSILE_SPEED
+                ),
             )
 
         # Keep only live captured UFOs
