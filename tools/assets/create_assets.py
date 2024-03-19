@@ -14,6 +14,7 @@ if not asset_output_dir.exists():
     asset_output_dir.mkdir()
 
 for ship_asset in [
+    "banner",
     "ship-hull",
     "ship-wingtip-left",
     "ship-wingtip-right",

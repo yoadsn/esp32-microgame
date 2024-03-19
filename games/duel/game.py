@@ -581,6 +581,7 @@ GST_ROUND_INIT = 0
 GST_ROUND_PRE_RUN = 1
 GST_ROUND_RUN = 2
 GST_ROUND_ENDED = 3
+BANNER_SHOW_TIME_MS = 3500
 
 GST_ROUNDED_ENDED_DELAY_MS = 2000
 
@@ -617,6 +618,10 @@ class GameLogic(BaseGameLogic):
         )
 
         init_display_assets(self.device)
+
+        self.banner_sprite = self.device.load_display_asset(
+            game_root_dir + "/assets/banner.pbm"
+        )
 
         self.game_state = GST_INIT
 
@@ -692,6 +697,7 @@ class GameLogic(BaseGameLogic):
                 next_state = GST_ROUND_ENDED
 
         elif curr_state == GST_ROUND_INIT:
+            self.banner_splash_start_time_ms = self.device.time.ticks_ms()
             next_state = GST_ROUND_PRE_RUN
 
         elif curr_state == GST_ROUND_PRE_RUN:
@@ -752,35 +758,43 @@ class GameLogic(BaseGameLogic):
             ]
 
     def draw(self):
+        time = self.device.time
         display = self.device.display
         # Clear display and redraw players
         display.fill(0)
 
         if self.game_state == GST_ROUND_PRE_RUN:
-            display.center_text("Press Start", 1)
-        elif self.game_state == GST_ROUND_ENDED:
-            if self.round_won:
-                display.center_text("Won!", 1)
+            time_since_banner_shown = time.ticks_diff(
+                time.ticks_ms(), self.banner_splash_start_time_ms
+            )
+            if time_since_banner_shown < BANNER_SHOW_TIME_MS:
+                display.blit(self.banner_sprite.buffer, 0, 0)
             else:
-                display.center_text("Lost..", 1)
-
-        self.bot_player.draw()
-        self.human_player.draw()
-
-        # move UFOs
-        for ufo in self.ufos:
-            if ufo:
-                ufo.draw()
-
-        if self.count_down_to_invert > 0:
+                display.center_text("Press Start", 1)
+        else:
             if self.game_state == GST_ROUND_ENDED:
-                self.count_down_to_invert = 0
-                display.invert(0)
-            else:
-                display.invert(1)
-                self.count_down_to_invert -= 1
-                if self.count_down_to_invert == 0:
+                if self.round_won:
+                    display.center_text("Victory", 1)
+                else:
+                    display.center_text("Defeat", 1)
+
+            self.bot_player.draw()
+            self.human_player.draw()
+
+            # move UFOs
+            for ufo in self.ufos:
+                if ufo:
+                    ufo.draw()
+
+            if self.count_down_to_invert > 0:
+                if self.game_state == GST_ROUND_ENDED:
+                    self.count_down_to_invert = 0
                     display.invert(0)
+                else:
+                    display.invert(1)
+                    self.count_down_to_invert -= 1
+                    if self.count_down_to_invert == 0:
+                        display.invert(0)
 
         display.show()
 
