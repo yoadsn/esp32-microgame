@@ -16,8 +16,7 @@ if not asset_output_dir.exists():
 for ship_asset in [
     "banner",
     "ship-hull",
-    "ship-wingtip-left",
-    "ship-wingtip-right",
+    "ship-wingtip",
     "ship-wing-ext",
 ]:
     # Sprite generation

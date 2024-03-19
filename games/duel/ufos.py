@@ -1,8 +1,8 @@
 from random import random
 from math import sin, pi
-from game_device import GameDevice
 
-game_root_dir = "./games/duel"
+from games.duel.env import GAME_ROOT_DIR
+from game_device import GameDevice
 
 
 class UfoTypes:
@@ -11,28 +11,6 @@ class UfoTypes:
     DAMAGE = 2
     SLOW = 3
     POWER = 4
-
-
-UFO_TYPES_SPRITES = []
-
-
-def init_display_assets(device: GameDevice):
-    global UFO_TYPES_SPRITES
-    UFO_TYPES_SPRITES.append(
-        device.load_display_asset(game_root_dir + "/assets/ufo-shield.pbm")
-    )
-    UFO_TYPES_SPRITES.append(
-        device.load_display_asset(game_root_dir + "/assets/ufo-rapid-fire.pbm")
-    )
-    UFO_TYPES_SPRITES.append(
-        device.load_display_asset(game_root_dir + "/assets/ufo-bomb.pbm")
-    )
-    UFO_TYPES_SPRITES.append(
-        device.load_display_asset(game_root_dir + "/assets/ufo-slowdown.pbm")
-    )
-    UFO_TYPES_SPRITES.append(
-        device.load_display_asset(game_root_dir + "/assets/ufo-powerup.pbm")
-    )
 
 
 # Probs are relative to the total probs on all types
@@ -65,6 +43,9 @@ def get_random_ufo_type():
             return tp[0]
 
 
+UFO_TYPES_SPRITES = []
+
+
 class Ufo:
     def __init__(
         self,
@@ -75,6 +56,7 @@ class Ufo:
         type: int = UfoTypes.SHIELD,
         direction_x=0,
     ):
+        self.device = device
         self.display = device.display
         self.time = device.time
         self.y = y
@@ -91,7 +73,30 @@ class Ufo:
         self.captured_at_ticks_ms: int = 0
         self.time_to_live_ms: int = UFO_TYPES_CONFIG[type][UFO_CONFIG_TTL]
         self.dead = False
+
+        self.initialize_display_assets()
         self.sprite = UFO_TYPES_SPRITES[type]
+
+    def initialize_display_assets(self):
+        global UFO_TYPES_SPRITES
+        # Only inititalize once - used cached assets otherwise
+        if len(UFO_TYPES_SPRITES) == 0:
+            device = self.device
+            UFO_TYPES_SPRITES.append(
+                device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-shield.pbm")
+            )
+            UFO_TYPES_SPRITES.append(
+                device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-rapid-fire.pbm")
+            )
+            UFO_TYPES_SPRITES.append(
+                device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-bomb.pbm")
+            )
+            UFO_TYPES_SPRITES.append(
+                device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-slowdown.pbm")
+            )
+            UFO_TYPES_SPRITES.append(
+                device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-powerup.pbm")
+            )
 
     def move(self):
         if self.captured:
