@@ -320,7 +320,7 @@ class Player:
         return self.play_state == PST_EXPLODED
 
     def update_power(self, power_diff):
-        self.power_points += power_diff
+        # self.power_points += power_diff
         self.player_width = max(
             PLAYER_MIN_BASE_LENGTH_PX,
             PLAYER_BASE_LENGTH_PX * (self.power_points / PLAYER_BASE_POWER_POINTS),

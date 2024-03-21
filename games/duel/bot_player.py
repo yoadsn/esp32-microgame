@@ -1,5 +1,5 @@
 from games.duel.missile import BASE_MISSILE_SPEED, DEFAULT_MISSILE_BLAST_RADIUS
-from games.duel.player import Player
+from games.duel.player import PST_DEFENSIVE, Player
 from games.duel.ufos import Ufo, UfoTypes
 
 _STATE_IDLE = 0
@@ -65,7 +65,7 @@ class ComputerController:
             elif self.check_on_target(
                 other_player.x - other_player.player_width // 2,
                 other_player.y,
-                other_player.vx,
+                0 if other_player.play_state == PST_DEFENSIVE else other_player.vx,
                 precision=6,
             ):
                 next_state = _STATE_SHOOTING
