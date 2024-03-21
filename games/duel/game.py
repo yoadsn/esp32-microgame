@@ -105,7 +105,9 @@ class GameLogic(BaseGameLogic):
             position=PLAYER_POSITION_BOTTOM,
             shoot_sound=self.shoot_sound,
         )
-        self.npc = ComputerController(self.bot_player)
+        self.npc = ComputerController(
+            self.field_start, self.field_end, self.bot_player, self.human_player
+        )
         self.ufos: list[Ufo] = []
         self.last_ufo_spawn_time_ms = 0
 
@@ -185,7 +187,7 @@ class GameLogic(BaseGameLogic):
                 self.start_game_tick = self.device.time.ticks_ms()
 
             self.human_player.play(button_pressed)
-            self.npc.play()
+            self.npc.play(self.ufos)
             self.spawn_ufos()
 
     def move(self):

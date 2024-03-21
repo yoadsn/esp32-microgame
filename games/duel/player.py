@@ -20,8 +20,7 @@ PST_CHARGING = 2
 PST_FIRING = 3
 PST_EXPLODED = 4
 
-STOP_TO_CHARGE_WAIT_MS = 10
-CHARGE_TO_FIRE_WAIT_PER_POWER_MS = 55
+CHARGE_TO_FIRE_WAIT_PER_POWER_GAME_TICKS = 1.2
 PLAYER_INITIAL_SPEED_PX_F = 4
 PLAYER_BASE_POWER_POINTS = 10
 PLAYER_BASE_LENGTH_PX = 40
@@ -76,6 +75,7 @@ class Player:
         self.play_state: int = PST_INIT
         self.play_state_start: int = 0
         self.power_points = power_points
+        self.state_ticks = 0
 
         self.vx = initialSpeed
         self.missile = None
@@ -236,6 +236,7 @@ class Player:
         curr_state = self.play_state
         next_state = PST_DEFENSIVE
         now = self.time.ticks_ms()
+        self.state_ticks += 1
         self.charge_pct = 0
 
         if self.power_points == 0:
@@ -244,23 +245,21 @@ class Player:
             if curr_state == PST_DEFENSIVE or curr_state == PST_FIRING:
                 next_state = PST_STOPPED
             else:
-                time_in_state = self.time.ticks_diff(now, self.play_state_start)
                 if curr_state == PST_STOPPED:
                     next_state = PST_STOPPED
-                    if time_in_state > STOP_TO_CHARGE_WAIT_MS and not self.missile:
+                    if not self.missile:
                         next_state = PST_CHARGING
                 elif curr_state == PST_CHARGING:
                     next_state = PST_CHARGING
-                    charge_time = CHARGE_TO_FIRE_WAIT_PER_POWER_MS
+                    charge_time = self.charge_time_ticks
                     if self.has_ufo_type(UfoTypes.RAPID_FIRE):
-                        charge_time = CHARGE_TO_FIRE_WAIT_PER_POWER_MS // 3
-                    self.charge_pct = time_in_state / float(
-                        charge_time * self.power_points
-                    )
+                        charge_time = self.charge_time_ticks / 3
+                    self.charge_pct = self.state_ticks / float(charge_time)
                     if self.charge_pct >= 1:
                         next_state = PST_FIRING
 
         if next_state != curr_state:
+            self.state_ticks = 0
             self.play_state_start = self.time.ticks_ms()
             self.play_state = next_state
 
@@ -327,6 +326,9 @@ class Player:
             PLAYER_BASE_LENGTH_PX * (self.power_points / PLAYER_BASE_POWER_POINTS),
         )
         self.player_height = self.ship_hull_sprite.h
+        self.charge_time_ticks = (
+            self.power_points * CHARGE_TO_FIRE_WAIT_PER_POWER_GAME_TICKS
+        )
         self.charge_bar.set_full_charge_pct(
             self.power_points / PLAYER_BASE_POWER_POINTS
         )
