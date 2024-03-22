@@ -18,7 +18,12 @@ from games.duel.player import (
     PLAYER_POSITION_TOP,
     PLAYER_POSITION_BOTTOM,
 )
-from games.duel.bot_player import BotSkillLevels, ComputerController
+from games.duel.bot_player import (
+    BotSkillLevels,
+    BOT_SKILL_LEVEL_NAMES,
+    MAX_BOT_SKILL_LEVEL,
+    ComputerController,
+)
 
 
 FIELD_WIDTH = 116
@@ -31,12 +36,11 @@ GST_ROUND_RUN = 2
 GST_ROUND_ENDED = 3
 BANNER_SHOW_TIME_MS = 3500
 
-GST_ROUNDED_ENDED_DELAY_MS = 2000
+GST_ROUNDED_ENDED_DELAY_MS = 1700
 
 MAX_UFOS_IN_GAME = 2
 UFO_MIN_TIME_BETWEEN_SPAWNS_MS = 4000
 UFO_SPAWN_CHANCE = 0.05  # 5%
-BOT_SKILL_LEVEL = BotSkillLevels.FUN
 
 
 class GameLogic(BaseGameLogic):
@@ -62,6 +66,7 @@ class GameLogic(BaseGameLogic):
         )
 
         self.game_state = GST_INIT
+        self.bot_skill_level = BotSkillLevels.JOKE
 
         print("game loading done")
 
@@ -111,7 +116,7 @@ class GameLogic(BaseGameLogic):
             self.field_end,
             self.bot_player,
             self.human_player,
-            level=BOT_SKILL_LEVEL,
+            level=self.bot_skill_level,
         )
         self.ufos: list[Ufo] = []
         self.last_ufo_spawn_time_ms = 0
@@ -164,7 +169,14 @@ class GameLogic(BaseGameLogic):
 
         elif curr_state == GST_ROUND_ENDED:
             if time.ticks_diff(now, self.game_state_start) > GST_ROUNDED_ENDED_DELAY_MS:
-                next_state = GST_PRELOADER
+                if self.round_won:
+                    self.bot_skill_level = min(
+                        MAX_BOT_SKILL_LEVEL, self.bot_skill_level + 1
+                    )
+                    next_state = GST_ROUND_INIT
+                else:
+                    self.bot_skill_level = BotSkillLevels.EASY
+                    next_state = GST_PRELOADER
         elif curr_state == GST_INIT:
             next_state = GST_PRELOADER
         else:
@@ -230,16 +242,22 @@ class GameLogic(BaseGameLogic):
         display.contrast(255)
 
         if self.game_state == GST_PRELOADER or self.game_state == GST_ROUND_INIT:
-            display.blit(self.banner_sprite.buffer, 0, 0)
+            # Only show the banner on the first round
+            if self.bot_skill_level == BotSkillLevels.JOKE:
+                display.blit(self.banner_sprite.buffer, 0, 0)
         elif self.game_state == GST_ROUND_PRE_RUN:
             time_since_banner_shown = time.ticks_diff(
                 time.ticks_ms(), self.banner_splash_start_time_ms
             )
             if time_since_banner_shown < BANNER_SHOW_TIME_MS:
                 display.blit(self.banner_sprite.buffer, 0, 0)
+                pass
             else:
                 display.fill(0)
-                display.center_text("Press Start", 1)
+                display.center_text(
+                    f"Level: {BOT_SKILL_LEVEL_NAMES[self.bot_skill_level]}", None, 20, 1
+                )
+                display.center_text("Press Start", None, 32, 1)
                 display.contrast(135 + int(sin(time.ticks_ms() / 500 * pi) * 12) * 10)
         else:
             display.fill(0)
@@ -248,9 +266,10 @@ class GameLogic(BaseGameLogic):
 
             if self.game_state == GST_ROUND_ENDED:
                 if self.round_won:
-                    display.center_text("Victory", 1)
+                    display.center_text("Victory!", None, 20, 1)
+                    display.center_text("Next Up...", None, 32, 1)
                 else:
-                    display.center_text("Defeat", 1)
+                    display.center_text("Boooo", None, None, 1)
             else:
                 # move UFOs
                 for ufo in self.ufos:

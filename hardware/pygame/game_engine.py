@@ -70,9 +70,11 @@ class MockGameDisplay(GameDisplay):
             self.last_text_surface = self.font.render(string, False, self.colors[col])
         self.buffer.blit(self.last_text_surface, [x, y], None)
 
-    def center_text(self, string, col):
+    def center_text(self, string, x, y, col):
         strlen = len(string) * 8
-        self.text(string, (self.width - strlen) // 2, (self.height - 8) // 2, col)
+        draw_x = (self.width - strlen) // 2 if x is None else x
+        draw_y = (self.height - 8) // 2 if y is None else y
+        self.text(string, draw_x, draw_y, col)
 
     def line(self, start_pos_x, start_pos_y, end_pos_x, end_pos_y, col):
         pygame.draw.line(

@@ -10,12 +10,22 @@ _MAX_IDLE_TIME_MS = 2500
 
 
 class BotSkillLevels:
-    EASY = 0
-    FUN = 1
-    MEDIUM = 2
+    JOKE = 0
+    EASY = 1
+    NORMAL = 2
     HARD = 3
     INSANE = 4
 
+
+BOT_SKILL_LEVEL_NAMES = {
+    0: "Joke",
+    1: "Easy",
+    2: "Normal",
+    3: "Hard",
+    4: "Insane",
+}
+
+MAX_BOT_SKILL_LEVEL = BotSkillLevels.INSANE
 
 _SKILL_LEVELS = [
     # vision inaccuracy (pixel offset), response time (ms until changing to a state), ufo_perplexity (1 - none, 3 - max)
@@ -199,4 +209,4 @@ class ComputerController:
                     self_player.play(True)  # stop
 
         if not played:
-            self_player.play(False)
+            self_player.play(True)
