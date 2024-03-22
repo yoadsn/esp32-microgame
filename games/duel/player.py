@@ -74,6 +74,7 @@ class Player:
         # State initialization
         self.play_state: int = PST_INIT
         self.play_state_start: int = 0
+        self.moved_after_shot = True
         self.power_points = power_points
         self.state_ticks = 0
 
@@ -247,7 +248,11 @@ class Player:
             else:
                 if curr_state == PST_STOPPED:
                     next_state = PST_STOPPED
-                    if not self.missile:
+                    # Can charge only after moving since the last shot
+                    # Or has rapid fire
+                    if not self.missile and (
+                        self.moved_after_shot or self.has_ufo_type(UfoTypes.RAPID_FIRE)
+                    ):
                         next_state = PST_CHARGING
                 elif curr_state == PST_CHARGING:
                     next_state = PST_CHARGING
@@ -257,6 +262,8 @@ class Player:
                     self.charge_pct = self.state_ticks / float(charge_time)
                     if self.charge_pct >= 1:
                         next_state = PST_FIRING
+        else:
+            self.moved_after_shot = True
 
         if next_state != curr_state:
             self.state_ticks = 0
@@ -268,6 +275,7 @@ class Player:
             if self.shoot_sound:
                 self.shoot_sound.play()
 
+            self.moved_after_shot = False
             self.missile = Missile(
                 self.display,
                 self.x,

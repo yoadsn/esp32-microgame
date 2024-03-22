@@ -8,10 +8,12 @@ from game_device import GameDevice
 class UfoTypes:
     SHIELD = 0
     RAPID_FIRE = 1
-    DAMAGE = 2
+    POWER = 2
     SLOW = 3
-    POWER = 4
+    DAMAGE = 4
 
+
+UFO_TYPES_COUNT = 5
 
 # Probs are relative to the total probs on all types
 UFO_CONFIG_PROB = 0
@@ -21,9 +23,9 @@ UFO_TYPES_CONFIG = [
     # prob, speed, ttl
     (1, 0.6, 4000),  # shield
     (4, 1.2, 3000),  # rapid fire
-    (2, 0.4, 0),  # damage
-    (4, 0.4, 3000),  # slow
     (3, 0.7, 0),  # power
+    (4, 0.4, 3000),  # slow
+    (2, 0.4, 0),  # damage
 ]
 
 UFO_TOTAL_PROBS = sum(tc[UFO_CONFIG_PROB] for tc in UFO_TYPES_CONFIG)
@@ -90,13 +92,13 @@ class Ufo:
                 device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-rapid-fire.pbm")
             )
             UFO_TYPES_SPRITES.append(
-                device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-bomb.pbm")
+                device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-powerup.pbm")
             )
             UFO_TYPES_SPRITES.append(
                 device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-slowdown.pbm")
             )
             UFO_TYPES_SPRITES.append(
-                device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-powerup.pbm")
+                device.load_display_asset(GAME_ROOT_DIR + "/assets/ufo-bomb.pbm")
             )
             print("done.")
 

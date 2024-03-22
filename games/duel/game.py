@@ -18,7 +18,7 @@ from games.duel.player import (
     PLAYER_POSITION_TOP,
     PLAYER_POSITION_BOTTOM,
 )
-from games.duel.bot_player import ComputerController
+from games.duel.bot_player import BotSkillLevels, ComputerController
 
 
 FIELD_WIDTH = 116
@@ -36,6 +36,7 @@ GST_ROUNDED_ENDED_DELAY_MS = 2000
 MAX_UFOS_IN_GAME = 2
 UFO_MIN_TIME_BETWEEN_SPAWNS_MS = 4000
 UFO_SPAWN_CHANCE = 0.05  # 5%
+BOT_SKILL_LEVEL = BotSkillLevels.FUN
 
 
 class GameLogic(BaseGameLogic):
@@ -106,7 +107,11 @@ class GameLogic(BaseGameLogic):
             shoot_sound=self.shoot_sound,
         )
         self.npc = ComputerController(
-            self.field_start, self.field_end, self.bot_player, self.human_player
+            self.field_start,
+            self.field_end,
+            self.bot_player,
+            self.human_player,
+            level=BOT_SKILL_LEVEL,
         )
         self.ufos: list[Ufo] = []
         self.last_ufo_spawn_time_ms = 0
