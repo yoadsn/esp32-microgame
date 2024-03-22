@@ -209,4 +209,4 @@ class ComputerController:
                     self_player.play(True)  # stop
 
         if not played:
-            self_player.play(True)
+            self_player.play(False)
