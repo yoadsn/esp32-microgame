@@ -186,11 +186,9 @@ class ComputerController:
 
         played = False
         if current_state == _STATE_SHOOTING:
-            if not self_player.missile:  # wait until can shoot
-                played = True
-                self_player.play(True)
+            played = True
+            self_player.play(True)
         elif current_state == _STATE_EVADING:
-
             if other_player.missile:
                 other_player_missile_x = other_player.missile.x + self.vision_inaccuracy
                 if (
