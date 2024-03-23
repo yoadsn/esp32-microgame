@@ -70,7 +70,7 @@ class SSD1306(framebuf.FrameBuffer):
             SET_DISP | 0x01,
         ):  # on
             self.write_cmd(cmd)
-        self.fill(0)
+        self.fill(1)
         self.show()
 
     def poweroff(self):

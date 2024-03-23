@@ -157,6 +157,9 @@ class MockGameAudio(GameAudio):
         self.sounds = []
         self.last_played_interruptable = True
 
+    def set_mute(self, mute):
+        self.mute = mute
+
     def play(self, sound_id, interruptable=True):
         if self.mute:
             pygame.mixer.stop()
@@ -218,6 +221,9 @@ class GameEngine:
         self.device = GameDevice(self.time, self.display, self.button, self.audio)
 
     def load(self, logic_gen: Type[BaseGameLogic]):
+        # if button is pressed - mute the sound
+        if self.button.value() == 0:
+            self.audio.set_mute(True)
         self.logic = logic_gen(self.device)
         self.logic.load()
 

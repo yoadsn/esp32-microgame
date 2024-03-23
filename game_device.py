@@ -174,6 +174,9 @@ class GameAudio:
     def __init__(self) -> None:
         pass
 
+    def set_mute(self, mute: bool) -> None:
+        pass
+
     def play(self, sound_id, interruptable):
         pass
 

@@ -27,9 +27,14 @@ def tim_cb(t):
         speaker_pwm.deinit()
         return
 
-    freqs, durations, melody_note_idx, melody_duration_counter, play_request_id, interruptable = (
-        melodies_queue[0]
-    )
+    (
+        freqs,
+        durations,
+        melody_note_idx,
+        melody_duration_counter,
+        play_request_id,
+        interruptable,
+    ) = melodies_queue[0]
     duration_counter = melody_duration_counter
     if duration_counter == 0:
         duration_counter = durations[melody_note_idx]
@@ -62,7 +67,7 @@ def tim_cb(t):
                 melody_note_idx,
                 duration_counter,
                 play_request_id,
-                interruptable
+                interruptable,
             )
         # the queue has been altered await nexy cycle to resync with it
         else:
@@ -74,9 +79,13 @@ tim0.init(freq=int(AUDIO_BPM / 60), mode=Timer.PERIODIC, callback=tim_cb)
 
 
 class PwmGameAudio(GameAudio):
-    def __init__(self):
+    def __init__(self, mute=False):
         self.melodies = []
         self.play_request_id = 0
+        self.mute = mute
+
+    def set_mute(self, mute):
+        self.mute = mute
 
     def load_melody(self, melody):
         freqs = [self.note_to_freq(mn[0], mn[1]) for mn in melody]
@@ -86,6 +95,9 @@ class PwmGameAudio(GameAudio):
 
     def play(self, melody_id, interruptable=True):
         global melodies_queue
+
+        if self.mute:
+            return
 
         self.play_request_id += 1
         freqs, durations = self.melodies[melody_id]
@@ -109,6 +121,9 @@ class GameEngine:
         self.device = GameDevice(time, display, button, PwmGameAudio())
 
     def load(self, logic_gen):
+        # if button is pressed - mute the sound
+        if self.device.button.value() == 0:
+            self.device.audio.set_mute(True)
         self.logic = logic_gen(self.device)
         self.logic.load()
 
