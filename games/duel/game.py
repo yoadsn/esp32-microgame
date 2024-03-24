@@ -30,6 +30,7 @@ FIELD_WIDTH = 116
 
 GST_INIT = -2
 GST_PRELOADER = -1
+GST_DEMO_MODE = -3
 GST_ROUND_INIT = 0
 GST_ROUND_PRE_RUN = 1
 GST_ROUND_RUN = 2
@@ -67,6 +68,7 @@ class GameLogic(BaseGameLogic):
 
         self.game_state = GST_INIT
         self.bot_skill_level = BotSkillLevels.JOKE
+        self.demo_mode = False
 
         print("game loading done")
 
@@ -111,13 +113,30 @@ class GameLogic(BaseGameLogic):
             position=PLAYER_POSITION_BOTTOM,
             shoot_sound=self.shoot_sound,
         )
-        self.npc = ComputerController(
-            self.field_start,
-            self.field_end,
-            self.bot_player,
-            self.human_player,
-            level=self.bot_skill_level,
-        )
+
+        if self.demo_mode:
+            self.npc = ComputerController(
+                self.field_start,
+                self.field_end,
+                self.bot_player,
+                self.human_player,
+                level=BotSkillLevels.INSANE,
+            )
+            self.demo_npc = ComputerController(
+                self.field_start,
+                self.field_end,
+                self.human_player,
+                self.bot_player,
+                level=BotSkillLevels.INSANE,
+            )
+        else:
+            self.npc = ComputerController(
+                self.field_start,
+                self.field_end,
+                self.bot_player,
+                self.human_player,
+                level=self.bot_skill_level,
+            )
         self.ufos: list[Ufo] = []
         self.last_ufo_spawn_time_ms = 0
 
@@ -157,18 +176,30 @@ class GameLogic(BaseGameLogic):
         button_pressed = self.device.button.value() == 0
 
         if curr_state == GST_ROUND_RUN:
+            if self.demo_mode:
+                if button_pressed:
+                    next_state = GST_ROUND_INIT
             if self.bot_player.check_exploded() or self.human_player.check_exploded():
                 next_state = GST_ROUND_ENDED
 
         elif curr_state == GST_ROUND_INIT:
+            self.demo_mode = False
             next_state = GST_ROUND_PRE_RUN
 
         elif curr_state == GST_ROUND_PRE_RUN:
             if button_pressed:
                 next_state = GST_ROUND_RUN
+            elif time.ticks_diff(now, self.game_state_start) > 15000:
+                next_state = GST_DEMO_MODE
+
+        elif curr_state == GST_DEMO_MODE:
+            next_state = GST_ROUND_RUN
 
         elif curr_state == GST_ROUND_ENDED:
-            if time.ticks_diff(now, self.game_state_start) > GST_ROUNDED_ENDED_DELAY_MS:
+            if (
+                time.ticks_diff(now, self.game_state_start) > GST_ROUNDED_ENDED_DELAY_MS
+                or self.demo_mode
+            ):
                 if self.round_won:
                     self.bot_skill_level = min(
                         MAX_BOT_SKILL_LEVEL, self.bot_skill_level + 1
@@ -197,18 +228,29 @@ class GameLogic(BaseGameLogic):
             self.initialize_round()
 
         elif curr_state == GST_ROUND_ENDED:
-            self.round_won = self.bot_player.check_exploded()
+            if self.demo_mode:
+                self.round_won = False
+            else:
+                self.round_won = self.bot_player.check_exploded()
 
         elif curr_state == GST_ROUND_RUN:
             if prev_state == GST_ROUND_PRE_RUN:
                 self.start_game_tick = self.device.time.ticks_ms()
 
-            self.human_player.play(button_pressed)
+            if self.demo_mode:
+                self.demo_npc.play(self.ufos)
+            else:
+                self.human_player.play(button_pressed)
+
             self.npc.play(self.ufos)
             self.spawn_ufos()
 
+        elif curr_state == GST_DEMO_MODE:
+            self.demo_mode = True
+            self.initialize_round()
+
     def move(self):
-        if self.game_state == GST_ROUND_RUN:
+        if self.game_state == GST_ROUND_RUN or self.game_state == GST_DEMO_MODE:
             # Move players if in defensive mode
             self.human_player.move()
             self.bot_player.move()
@@ -265,11 +307,12 @@ class GameLogic(BaseGameLogic):
             self.human_player.draw()
 
             if self.game_state == GST_ROUND_ENDED:
-                if self.round_won:
-                    display.center_text("Victory!", None, 20, 1)
-                    display.center_text("Next Up...", None, 32, 1)
-                else:
-                    display.center_text("Boooo", None, None, 1)
+                if not self.demo_mode:
+                    if self.round_won:
+                        display.center_text("Victory!", None, 20, 1)
+                        display.center_text("Next Up...", None, 32, 1)
+                    else:
+                        display.center_text("Boooo", None, None, 1)
             else:
                 # move UFOs
                 for ufo in self.ufos:
