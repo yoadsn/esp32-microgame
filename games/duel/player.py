@@ -78,7 +78,8 @@ class Player:
         self.power_points = power_points
         self.state_ticks = 0
 
-        self.vx = initialSpeed
+        # players go in diff directions initially
+        self.vx = initialSpeed * self.direction
         self.missile = None
         self.ufo: Ufo = None
         self.charge_pct = 0
